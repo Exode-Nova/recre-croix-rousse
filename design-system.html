@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Récré Croix-Rousse — Design System (Dofus-like)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;color:#fff;font-family:system-ui,sans-serif;padding:20px}
+h1{text-align:center;font-size:1.8em;margin-bottom:4px;color:#ffd700}
+h1 span{font-size:.5em;display:block;color:#aaa;font-weight:400}
+h2{color:#ff9800;border-bottom:2px solid #ff9800;padding-bottom:4px;margin:24px 0 12px}
+.grid{display:flex;flex-wrap:wrap;gap:12px}
+.card{background:#16213e;border-radius:12px;padding:16px;flex:1;min-width:140px;text-align:center}
+.card .name{font-weight:700;font-size:.9em;margin-top:8px}
+.card .desc{font-size:.7em;color:#aaa;margin-top:2px}
+.palette{display:flex;gap:6px;flex-wrap:wrap}
+.swatch{width:48px;height:48px;border-radius:8px;border:2px solid #333;position:relative}
+.swatch .label{position:absolute;bottom:-18px;left:0;right:0;font-size:.55em;color:#aaa;text-align:center}
+
+/* SPRITES - Pure CSS */
+.sprite{position:relative;width:80px;height:80px;margin:0 auto}
+/* Character base */
+.char{position:absolute;left:50%;bottom:0;transform:translateX(-50%)}
+/* Shadow */
+.char::before{content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:40px;height:12px;background:rgba(0,0,0,.3);border-radius:50%}
+/* Head */
+.head{width:28px;height:28px;border-radius:50%;border:3px solid #1a1a2e;position:absolute;left:50%;transform:translateX(-50%);z-index:2}
+/* Body */
+.body{width:22px;height:20px;border-radius:6px 6px 4px 4px;border:3px solid #1a1a2e;position:absolute;left:50%;transform:translateX(-50%);z-index:1}
+/* Arms */
+.arm{width:7px;height:14px;border-radius:4px;border:2px solid #1a1a2e;position:absolute;z-index:0}
+.arm.left{left:2px;transform:rotate(10deg)}
+.arm.right{right:2px;transform:rotate(-10deg)}
+/* Legs */
+.leg{width:7px;height:12px;border-radius:4px;border:2px solid #1a1a2e;position:absolute;z-index:0}
+.leg.left{left:5px}
+.leg.right{right:5px}
+/* Face elements */
+.eyes{position:absolute;top:9px;left:7px;width:14px;height:4px;display:flex;justify-content:space-between}
+.eye{width:4px;height:4px;background:#1a1a2e;border-radius:50%}
+.mouth{position:absolute;top:17px;left:10px;width:8px;height:3px;border-bottom:2px solid #1a1a2e;border-radius:0 0 4px 4px}
+
+/* Specific chars */
+.sprite-leo .head{background:#ff9800;top:28px}
+.sprite-leo .body{background:#e65100;top:55px}
+.sprite-leo .arm,.sprite-leo .leg{background:#e65100;top:57px}
+.sprite-leo .leg{top:73px}
+
+.sprite-maya .head{background:#e91e63;top:28px}
+.sprite-maya .body{background:#ad1457;top:55px}
+.sprite-maya .arm,.sprite-maya .leg{background:#ad1457;top:57px}
+.sprite-maya .leg{top:73px}
+
+.sprite-samir .head{background:#4caf50;top:28px}
+.sprite-samir .body{background:#2e7d32;top:55px}
+.sprite-samir .arm,.sprite-samir .leg{background:#2e7d32;top:57px}
+.sprite-samir .leg{top:73px}
+
+.sprite-chloe .head{background:#9c27b0;top:28px}
+.sprite-chloe .body{background:#6a1b9a;top:55px}
+.sprite-chloe .arm,.sprite-chloe .leg{background:#6a1b9a;top:57px}
+.sprite-chloe .leg{top:73px}
+
+.sprite-jade .head{background:#00bcd4;top:28px}
+.sprite-jade .body{background:#00838f;top:55px}
+.sprite-jade .arm,.sprite-jade .leg{background:#00838f;top:57px}
+.sprite-jade .leg{top:73px}
+
+.sprite-theo .head{background:#3f51b5;top:28px}
+.sprite-theo .body{background:#1a237e;top:55px}
+.sprite-theo .arm,.sprite-theo .leg{background:#1a237e;top:57px}
+.sprite-theo .leg{top:73px}
+
+.sprite-player .head{background:#2196f3;top:26px;width:32px;height:32px;border:4px solid #1a1a2e}
+.sprite-player .body{background:#1565c0;top:56px;width:26px;height:24px;border:4px solid #1a1a2e}
+.sprite-player .arm,.sprite-player .leg{background:#1565c0;top:58px;width:9px;height:16px;border:3px solid #1a1a2e}
+.sprite-player .leg{top:78px;width:9px;height:14px}
+.sprite-player .hat{position:absolute;top:22px;left:50%;transform:translateX(-50%);width:20px;height:6px;background:#fff;border:2px solid #1a1a2e;border-radius:2px;z-index:3}
+
+/* TILES */
+.tile{width:64px;height:48px;border-radius:4px;border:2px solid #1a1a2e;position:relative;overflow:hidden}
+.tile-grass{background:linear-gradient(135deg,#4caf50,#66bb6a);background-image:radial-gradient(circle,#81c784 1px,transparent 1px);background-size:8px 8px}
+.tile-floor{background:linear-gradient(135deg,#d7ccc8,#bcaaa4)}
+.tile-court{background:linear-gradient(135deg,#c4a882,#b8956a);background-image:radial-gradient(circle,#d4b896 1px,transparent 1px);background-size:6px 6px}
+.tile-canteen{background:linear-gradient(135deg,#ffe0b2,#ffcc80)}
+.tile-road{background:linear-gradient(135deg,#9e9e9e,#bdbdbd)}
+.tile-wall{background:linear-gradient(135deg,#795548,#8d6e63);border:2px solid #4e342e}
+.tile-wall::after{content:'';position:absolute;top:0;left:0;right:0;height:6px;background:rgba(255,255,255,.1)}
+
+/* BUILDINGS */
+.building{position:relative;width:120px;height:80px}
+.building .roof{position:absolute;top:0;left:-8px;right:-8px;height:30px;background:#c62828;clip-path:polygon(5% 100%,50% 0,95% 100%);border:2px solid #1a1a2e}
+.building .walls{position:absolute;top:28px;left:0;right:0;bottom:0;background:#ffcc80;border:2px solid #1a1a2e;border-top:none;border-radius:0 0 4px 4px}
+.building .window{position:absolute;top:36px;width:14px;height:14px;background:#e3f2fd;border:2px solid #1a1a2e;border-radius:2px}
+.building .door{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:18px;height:26px;background:#5d4037;border:2px solid #1a1a2e;border-radius:3px 3px 0 0}
+
+/* UI ELEMENTS */
+.ui-btn{display:inline-block;padding:8px 20px;border-radius:20px;border:3px solid #1a1a2e;font-weight:700;font-size:.85em;cursor:pointer;color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.3)}
+.btn-primary{background:linear-gradient(180deg,#ff9800,#f57c00)}
+.btn-good{background:linear-gradient(180deg,#66bb6a,#43a047)}
+.btn-danger{background:linear-gradient(180deg,#ef5350,#e53935)}
+.btn-info{background:linear-gradient(180deg,#42a5f5,#1e88e5)}
+
+.hud-bar{height:14px;border:3px solid #1a1a2e;border-radius:7px;overflow:hidden;background:#333}
+.hud-fill{height:100%;border-radius:4px}
+.hp-fill{background:linear-gradient(90deg,#66bb6a,#4caf50)}
+.ap-fill{background:linear-gradient(90deg,#ff9800,#f57c00)}
+.trust-fill{background:linear-gradient(90deg,#42a5f5,#1e88e5)}
+
+/* MOOD BUBBLES */
+.mood{display:inline-block;width:28px;height:28px;border-radius:50%;border:2px solid #1a1a2e;font-size:16px;line-height:26px;text-align:center}
+.mood-happy{background:#c8e6c9}
+.mood-neutral{background:#fff9c4}
+.mood-sad{background:#ffcdd2}
+.mood-angry{background:#ef9a9a}
+
+/* DECOR */
+.tree{position:relative;width:40px;height:50px}
+.tree::before{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:8px;height:18px;background:#5d4037;border:2px solid #1a1a2e}
+.tree::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:36px;height:36px;background:#388e3c;border:3px solid #1a1a2e;border-radius:50% 50% 40% 40%}
+
+.bench{width:50px;height:20px;background:#795548;border:2px solid #1a1a2e;border-radius:4px;position:relative}
+.bench::before,.bench::after{content:'';position:absolute;bottom:-8px;width:6px;height:10px;background:#5d4037;border:2px solid #1a1a2e}
+.bench::before{left:6px}.bench::after{right:6px}
+
+/* SOCCER FIELD */
+.field{width:80px;height:50px;background:#81c784;border:3px solid #fff;border-radius:4px;position:relative}
+.field::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;border:2px solid #fff;border-radius:50%}
+.field::after{content:'';position:absolute;top:0;bottom:0;left:50%;width:0;border-left:2px solid #fff}
+
+/* TOOLTIP */
+.tooltip{position:relative;display:inline-block}
+.tooltip .tt{visibility:hidden;position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:4px 10px;border-radius:6px;font-size:.7em;white-space:nowrap;border:2px solid #ffd700}
+.tooltip:hover .tt{visibility:visible}
+
+/* ISO LAYOUT */
+.iso-grid{display:flex;gap:0;flex-wrap:wrap;max-width:400px}
+.iso-cell{width:32px;height:16px;position:relative;overflow:hidden}
+.iso-cell::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0}
+
+/* Section dividers */
+hr{border-color:#333;margin:20px 0}
+.specs{font-size:.75em;color:#aaa;margin-top:6px}
+.specs dt{color:#ffd700;font-weight:700;margin-top:4px}
+.specs dd{margin-left:12px}
+</style>
+</head>
+<body>
+
+<h1>🎨 RÉCRÉ CROIX-ROUSSE<br><span>Design System — Inspiré de Dofus / Ankama</span></h1>
+
+<!-- ═════ PERSOS ═════ -->
+<h2>👦👧 Personnages — Style Chibi Dofus-like</h2>
+<div class="grid">
+  <div class="card">
+    <div class="sprite sprite-leo"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">🦁 Léo</div><div class="desc">Leader turbulent<br>Tête orange, corps burnt orange</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-maya"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">🎨 Maya</div><div class="desc">Artiste sensible<br>Tête rose, corps pourpre</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-samir"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">⚽ Samir</div><div class="desc">Sportif impulsif<br>Tête verte, corps dark green</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-chloe"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">👑 Chloé</div><div class="desc">Manipulatrice<br>Tête violette, corps pourpre</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-jade"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">🐣 Jade</div><div class="desc">Nouvelle timide<br>Tête cyan, corps teal</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-theo"><div class="char"><div class="head"><div class="eyes"><div class="eye"></div><div class="eye"></div></div><div class="mouth"></div></div><div class="body"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div></div></div>
+    <div class="name">🔭 Théo</div><div class="desc">Rêveur HPI<br>Tête indigo, corps navy</div>
+  </div>
+  <div class="card">
+    <div class="sprite sprite-player"><div class="char">
+      <div class="hat"></div>
+      <div class="head" style="width:32px;height:32px;top:34px"><div class="eyes" style="top:11px;left:9px"><div class="eye" style="width:5px;height:5px"></div><div class="eye" style="width:5px;height:5px"></div></div><div class="mouth" style="top:19px;left:12px;width:8px"></div></div>
+      <div class="body" style="width:26px;height:24px;top:63px"></div>
+      <div class="arm left" style="width:9px;height:16px;top:65px"></div>
+      <div class="arm right" style="width:9px;height:16px;top:65px"></div>
+      <div class="leg left" style="width:9px;height:14px;top:85px"></div>
+      <div class="leg right" style="width:9px;height:14px;top:85px"></div>
+    </div></div>
+    <div class="name">🧑‍🏫 VOUS</div><div class="desc">Animateur·rice<br>Chapeau blanc, bleu</div>
+  </div>
+</div>
+
+<!-- ═════ PALETTE ═════ -->
+<h2>🎨 Palette de couleurs</h2>
+<div class="card" style="text-align:left">
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <div class="swatch" style="background:#4caf50"><div class="label">Herbe</div></div>
+    <div class="swatch" style="background:#c4a882"><div class="label">Cour</div></div>
+    <div class="swatch" style="background:#ffe0b2"><div class="label">Cantine</div></div>
+    <div class="swatch" style="background:#d7ccc8"><div class="label">Salle</div></div>
+    <div class="swatch" style="background:#9e9e9e"><div class="label">Rue</div></div>
+    <div class="swatch" style="background:#795548"><div class="label">Murs</div></div>
+    <div class="swatch" style="background:#ff9800"><div class="label">Léo</div></div>
+    <div class="swatch" style="background:#e91e63"><div class="label">Maya</div></div>
+    <div class="swatch" style="background:#4caf50"><div class="label">Samir</div></div>
+    <div class="swatch" style="background:#9c27b0"><div class="label">Chloé</div></div>
+    <div class="swatch" style="background:#00bcd4"><div class="label">Jade</div></div>
+    <div class="swatch" style="background:#3f51b5"><div class="label">Théo</div></div>
+    <div class="swatch" style="background:#2196f3"><div class="label">Joueur</div></div>
+    <div class="swatch" style="background:#1a1a2e"><div class="label">Contour</div></div>
+  </div>
+  <dl class="specs">
+    <dt>Contours</dt><dd>#1a1a2e, 2-4px selon taille</dd>
+    <dt>Ombres</dt><dd>rgba(0,0,0,.25), ovales au sol</dd>
+    <dt>Fond global</dt><dd>#1a1a2e (sombre, met en valeur)</dd>
+    <dt>Ratio tête/corps</dt><dd>1:1.2 (tête ~50% du perso)</dd>
+  </dl>
+</div>
+
+<!-- ═════ TILES ═════ -->
+<h2>🧱 Tiles — 32×32px</h2>
+<div class="grid">
+  <div class="card"><div class="tile tile-grass"></div><div class="name">Herbe</div></div>
+  <div class="card"><div class="tile tile-floor"></div><div class="name">Sol salle</div></div>
+  <div class="card"><div class="tile tile-court"></div><div class="name">Cour récré</div></div>
+  <div class="card"><div class="tile tile-canteen"></div><div class="name">Cantine</div></div>
+  <div class="card"><div class="tile tile-road"></div><div class="name">Rue</div></div>
+  <div class="card"><div class="tile tile-wall"></div><div class="name">Mur</div></div>
+</div>
+
+<!-- ═════ DECOR ═════ -->
+<h2>🌳 Éléments de décor</h2>
+<div class="grid">
+  <div class="card"><div class="tree"></div><div class="name">Arbre</div></div>
+  <div class="card"><div class="bench"></div><div class="name">Banc</div></div>
+  <div class="card"><div class="field"></div><div class="name">Terrain foot</div></div>
+  <div class="card"><div class="building" style="width:100px;height:60px"><div class="roof" style="height:24px"></div><div class="walls" style="top:22px"><div class="window" style="left:14px"></div><div class="window" style="right:14px"></div><div class="door"></div></div></div><div class="name">Bâtiment école</div></div>
+</div>
+
+<!-- ═════ HUMEURS ═════ -->
+<h2>😊 Bulles d'humeur</h2>
+<div class="grid">
+  <div class="card"><div class="mood mood-happy">😄</div><div class="name">Heureux</div></div>
+  <div class="card"><div class="mood mood-neutral">😐</div><div class="name">Neutre</div></div>
+  <div class="card"><div class="mood mood-sad">😢</div><div class="name">Triste</div></div>
+  <div class="card"><div class="mood mood-angry">😡</div><div class="name">Fâché</div></div>
+  <div class="card"><div class="mood" style="background:#ffcc80">💢</div><div class="name">Tension</div></div>
+  <div class="card"><div class="mood" style="background:#ef9a9a">💥</div><div class="name">Conflit</div></div>
+</div>
+
+<!-- ═════ UI ═════ -->
+<h2>🖥️ Éléments UI</h2>
+<div class="grid">
+  <div class="card">
+    <p style="margin-bottom:8px">Boutons</p>
+    <div class="ui-btn btn-primary">Action</div>
+    <div style="margin-top:8px;display:flex;gap:4px;justify-content:center">
+      <div class="ui-btn btn-good">Oui</div>
+      <div class="ui-btn btn-danger">Non</div>
+      <div class="ui-btn btn-info">?</div>
+    </div>
+  </div>
+  <div class="card">
+    <p style="margin-bottom:8px">Barres de jauge</p>
+    <div style="margin:4px 0"><small>⚡ Énergie</small><div class="hud-bar"><div class="hud-fill hp-fill" style="width:75%"></div></div></div>
+    <div style="margin:4px 0"><small>💪 Autorité</small><div class="hud-bar"><div class="hud-fill ap-fill" style="width:50%"></div></div></div>
+    <div style="margin:4px 0"><small>❤️ Confiance</small><div class="hud-bar"><div class="hud-fill trust-fill" style="width:60%"></div></div></div>
+  </div>
+  <div class="card">
+    <p style="margin-bottom:8px">Dialogue</p>
+    <div style="background:#16213e;border:3px solid #1a1a2e;border-radius:12px;padding:12px;text-align:left;font-size:.8em">
+      <strong>💬 Léo</strong><br>
+      "Mon père dit que je suis nul..."<br><br>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div class="ui-btn btn-good" style="font-size:.75em;padding:6px 12px">A) L'encourager</div>
+        <div class="ui-btn btn-info" style="font-size:.75em;padding:6px 12px">B) Proposer un autre sport</div>
+        <div class="ui-btn btn-primary" style="font-size:.75em;padding:6px 12px">C) Parler au père</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ SPECS ═════ -->
+<h2>📐 Spécifications techniques</h2>
+<div class="card" style="text-align:left">
+  <dl class="specs">
+    <dt>Résolution cible</dt><dd>760×540px canvas</dd>
+    <dt>Taille des tiles</dt><dd>32×32px</dd>
+    <dt>Taille des persos</dt><dd>~28×48px (tête 14×14, corps 12×20)</dd>
+    <dt>Police</dt><dd>System UI, bold pour les titres</dd>
+    <dt>Bordures</dt><dd>2-3px solid #1a1a2e sur TOUS les éléments</dd>
+    <dt>Arrondis</dt><dd>4-6px sur les boutons, 50% sur bulles</dd>
+    <dt>Référence</dt><dd>Dofus (Ankama) — cartoon, couleurs saturées, contours noirs</dd>
+    <dt>Accessibilité</dt><dd>Contraste ≥ 4.5:1, cibles tactiles ≥ 44px</dd>
+  </dl>
+</div>
+
+<script>
+// Quick toggle for dark/light
+document.addEventListener('dblclick',()=>{
+  document.body.style.background=document.body.style.background==='#fafafa'?'#1a1a2e':'#fafafa';
+});
+</script>
+</body>
+</html>
