@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Récré Croix-Rousse</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5e6d3;color:#3d2b1f;display:flex;justify-content:center;align-items:center;min-height:100vh;user-select:none;-webkit-tap-highlight-color:transparent}
+#app{width:100%;max-width:420px;min-height:100vh;background:linear-gradient(180deg,#fdf6ee 0%,#f0e0c8 100%);padding:16px;position:relative;overflow:hidden}
+h1{font-size:1.6em;text-align:center;color:#8b4513;margin:8px 0}
+h2{font-size:1.2em;color:#6b3410;margin:6px 0}
+h3{font-size:1em;color:#5a2d0c}
+.header{text-align:center;margin-bottom:12px}
+.subtitle{font-size:.85em;color:#a0724a;font-style:italic;margin-bottom:8px}
+.badges{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.badge{padding:5px 10px;border-radius:12px;font-size:.75em;font-weight:700;color:#fff}
+.badge-day{background:#d35400}
+.badge-phase{background:#8b4513}
+.jauges{display:flex;gap:6px;margin:12px 0;font-size:.8em}
+.jauge{flex:1;text-align:center;background:#fff;border-radius:10px;padding:8px 4px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.jauge .icon{font-size:1.5em}
+.jauge .val{font-weight:700;font-size:1.1em}
+.jauge .bar{height:6px;background:#ddd;border-radius:3px;margin-top:4px;overflow:hidden}
+.jauge .fill{height:100%;border-radius:3px;transition:width .5s}
+.fill-energy{background:#27ae60}.fill-auth{background:#e67e22}.fill-trust{background:#3498db}
+.card{background:#fff;border-radius:14px;padding:16px;margin:10px 0;box-shadow:0 3px 10px rgba(0,0,0,.08);line-height:1.5}
+.card h3{margin-bottom:8px}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:.95em;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;background:#fef9f3;border:2px solid #e0c8a8;color:#5a2d0c}
+.btn:active{transform:scale(.97);background:#f5e6d3}
+.btn-primary{background:#d35400;color:#fff;border-color:#d35400;text-align:center;font-size:1.05em}
+.btn-primary:active{background:#a04000}
+.btn-good{background:#e8f5e9;border-color:#81c784;color:#2e7d32}
+.btn-neutral{background:#fff8e1;border-color:#ffb74d;color:#e65100}
+.btn-bad{background:#fbe9e7;border-color:#ef9a9a;color:#c62828}
+.btn-info{background:#e3f2fd;border-color:#90caf9;color:#1565c0}
+.students{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.student{flex:1;min-width:70px;text-align:center;background:#fef9f3;border-radius:10px;padding:8px 4px;font-size:.75em}
+.student .emoji{font-size:2em;display:block}
+.student .name{font-weight:700;margin-top:4px}
+.student .mood{font-size:.7em;color:#888}
+.event-box{background:#fff3e0;border-left:4px solid #e67e22;padding:12px;border-radius:0 10px 10px 0;margin:10px 0;font-size:.9em}
+.result{text-align:center;padding:20px}
+.result h2{font-size:1.4em;margin:12px 0}
+.result .score{font-size:3em;font-weight:700;color:#d35400}
+.result .title{font-size:1.1em;color:#8b4513;margin:6px 0}
+.logs{font-size:.8em;color:#666;margin-top:8px;max-height:120px;overflow-y:auto}
+.log{background:#fef9f3;padding:6px 10px;border-radius:6px;margin:3px 0;font-size:.75em}
+.emoji-big{font-size:4em;display:block;text-align:center;margin:16px 0}
+.fade-in{animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ─── ÉTAT DU JEU ───
+const STUDENTS = [
+  {id:'leo',name:'Léo',emoji:'🦁',trait:'Leader turbulent',mood:'😐'},
+  {id:'maya',name:'Maya',emoji:'🎨',trait:'Artiste sensible',mood:'😐'},
+  {id:'samir',name:'Samir',emoji:'⚽',trait:'Sportif impulsif',mood:'😐'},
+  {id:'chloe',name:'Chloé',emoji:'👑',trait:'Manipulatrice',mood:'😐'}
+];
+
+const ACTIVITIES = [
+  {id:'sport',name:'⚽ Foot',energy:-15,auth:5,trust:10,desc:'Match dans la cour'},
+  {id:'art',name:'🎨 Dessin',energy:-10,auth:0,trust:15,desc:'Atelier créatif'},
+  {id:'board',name:'🎲 Jeux de société',energy:-5,auth:5,trust:5,desc:'Calme et stratégie'},
+  {id:'theatre',name:'🎭 Théâtre',energy:-20,auth:10,trust:10,desc:'Improvisation'},
+  {id:'sortie',name:'🏘️ Sortie quartier',energy:-25,auth:15,trust:20,desc:'Traboules & marché'},
+  {id:'lecture',name:'📖 Lecture',energy:-5,auth:-5,trust:5,desc:'Contes de Guignol'},
+];
+
+const CONFLICTS = [
+  {
+    id:'bagarre',title:'🥊 Bagarre dans la cour !',
+    desc:'Léo et Samir se battent pour un ballon. Les autres élèves regardent.',
+    choices:[
+      {text:'Séparer et punir les deux',effects:{energy:-10,auth:10,trust:-5},students:{leo:-1,samir:-1}},
+      {text:'Discuter pour comprendre',effects:{energy:-15,auth:5,trust:10},students:{leo:0,samir:0}},
+      {text:'Proposer un match arbitré',effects:{energy:-20,auth:10,trust:15},students:{leo:1,samir:1}},
+    ]
+  },
+  {
+    id:'exclusion',title:'💔 Maya est exclue',
+    desc:'Chloé a monté un groupe contre Maya. Elle pleure dans un coin.',
+    choices:[
+      {text:'Gronder Chloé devant tout le monde',effects:{energy:-5,auth:15,trust:-10},students:{chloe:-2,maya:0}},
+      {text:'Parler à Chloé en privé',effects:{energy:-10,auth:5,trust:10},students:{chloe:0,maya:1}},
+      {text:'Organiser un jeu en binôme Maya+Chloé',effects:{energy:-15,auth:5,trust:15},students:{chloe:1,maya:2}},
+    ]
+  },
+  {
+    id:'harcelement',title:'😢 Lucas se fait embêter',
+    desc:'Samir et Chloé se moquent du sac à dos de Lucas.',
+    choices:[
+      {text:'Intervention ferme + mot aux parents',effects:{energy:-10,auth:20,trust:-10},students:{samir:-2,chloe:-2}},
+      {text:'Médiation collective',effects:{energy:-20,auth:5,trust:15},students:{samir:0,chloe:0}},
+      {text:'Faire diversion avec une activité cool',effects:{energy:-10,auth:0,trust:10},students:{samir:0,chloe:0}},
+    ]
+  },
+  {
+    id:'parent',title:'👨‍👩‍👧 Parent mécontent',
+    desc:'M. Durand, père de Léo, débarque furieux : "Mon fils s\'est fait mal hier !"',
+    choices:[
+      {text:"S'excuser et promettre de faire attention",effects:{energy:-5,auth:-10,trust:5}},
+      {text:'Expliquer calmement les faits',effects:{energy:-15,auth:10,trust:10}},
+      {text:'Proposer un rendez-vous formel',effects:{energy:-10,auth:15,trust:0}},
+    ]
+  },
+];
+
+const RANDOM_EVENTS = [
+  {title:'🌧️ Jour de pluie',desc:'Récré à l\'intérieur. Les enfants sont surexcités.',effects:{energy:-15}},
+  {title:'🎂 Gâteau surprise',desc:'L\'anniversaire de Maya apporte de la bonne humeur !',effects:{trust:10}},
+  {title:'🏛️ Visite impromptue',desc:'La directrice passe inspecter. Faut être irréprochable.',effects:{auth:-5}},
+  {title:'☀️ Canicule',desc:'Tout le monde est fatigué, les conflits éclatent plus vite.',effects:{energy:-10,trust:-5}},
+];
+
+let G = {
+  day:1,phase:0, // 0=matin 1=midi 2=aprem 3=soir
+  energy:100,auth:50,trust:50,
+  students:{leo:0,maya:0,samir:0,chloe:0},
+  logs:[],
+  chosenActivity:null,
+  phaseName:['Matin','Midi','Après-midi','Soir'],
+  dayName:['Lundi','Mardi','Mercredi','Jeudi','Vendredi'],
+};
+
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function sgn(n){return n>0?'+'+n:String(n)}
+function moodEmoji(val){
+  if(val>=2)return '😄';if(val>=1)return'🙂';if(val>=0)return'😐';if(val>=-1)return'😕';
+  return'😢';
+}
+
+function log(msg){G.logs.unshift(msg);if(G.logs.length>20)G.logs.pop()}
+
+// ─── RENDU ───
+function renderHeader(){
+  return `
+    <div class="header">
+      <h1>🏫 Récré Croix-Rousse</h1>
+      <div class="subtitle">Animateur·rice périscolaire — Croix-Rousse, Lyon</div>
+      <div class="badges">
+        <span class="badge badge-day">📅 ${G.dayName[G.day-1]} (J${G.day}/5)</span>
+        <span class="badge badge-phase">🕐 ${G.phaseName[G.phase]}</span>
+      </div>
+      <div class="jauges">
+        <div class="jauge"><span class="icon">⚡</span><div class="val">${G.energy}</div><div class="bar"><div class="fill fill-energy" style="width:${G.energy}%"></div></div><small>Énergie</small></div>
+        <div class="jauge"><span class="icon">💪</span><div class="val">${G.auth}</div><div class="bar"><div class="fill fill-auth" style="width:${G.auth}%"></div></div><small>Autorité</small></div>
+        <div class="jauge"><span class="icon">❤️</span><div class="val">${G.trust}</div><div class="bar"><div class="fill fill-trust" style="width:${G.trust}%"></div></div><small>Confiance</small></div>
+      </div>
+    </div>`;
+}
+
+function renderStudents(){
+  let html='<div class="students">';
+  STUDENTS.forEach(s=>{
+    const v=G.students[s.id];
+    html+=`<div class="student"><span class="emoji">${s.emoji}</span><span class="name">${s.name}</span><span class="mood">${moodEmoji(v)} ${sgn(v)}</span></div>`;
+  });
+  html+='</div>';
+  return html;
+}
+
+// ─── ÉCRANS ───
+function screenMorning(){
+  let html=renderHeader()+`<div class="card fade-in"><h3>🌅 Matin — Préparer l'activité</h3><p>Choisis l'activité de l'après-midi :</p><div class="choices">`;
+  ACTIVITIES.forEach(a=>{
+    html+=`<button class="btn" onclick="pickActivity('${a.id}')"><b>${a.name}</b> — ${a.desc}<br><small>⚡${sgn(a.energy)} 💪${sgn(a.auth)} ❤️${sgn(a.trust)}</small></button>`;
+  });
+  html+=`</div></div>${renderStudents()}`;
+  return html;
+}
+
+function screenConflict(){
+  const c=CONFLICTS[Math.floor(Math.random()*CONFLICTS.length)];
+  G.currentConflict=c;
+  let html=renderHeader()+`<div class="card fade-in"><h3>⚠️ Conflit — ${G.phaseName[G.phase]}</h3><div class="event-box">${c.desc}</div><div class="choices">`;
+  c.choices.forEach((ch,i)=>{
+    html+=`<button class="btn btn-neutral" onclick="resolveConflict(${i})">${ch.text}</button>`;
+  });
+  html+=`</div></div>${renderStudents()}`;
+  return html;
+}
+
+function screenAfternoon(){
+  const a=G.chosenActivity;
+  let html=renderHeader()+`<div class="card fade-in"><h3>🎯 Activité : ${a.name}</h3><p>${a.desc}</p><p style="margin-top:10px;color:#666">L'activité se déroule bien !</p>`;
+  // Random event chance
+  if(Math.random()<0.4){
+    const ev=RANDOM_EVENTS[Math.floor(Math.random()*RANDOM_EVENTS.length)];
+    html+=`<div class="event-box" style="margin-top:10px"><b>${ev.title}</b> — ${ev.desc}</div>`;
+    if(ev.effects.energy)G.energy=clamp(G.energy+(ev.effects.energy||0),0,100);
+    if(ev.effects.trust)G.trust=clamp(G.trust+(ev.effects.trust||0),0,100);
+    if(ev.effects.auth)G.auth=clamp(G.auth+(ev.effects.auth||0),0,100);
+    log(ev.title);
+  }
+  html+=`<button class="btn btn-primary" onclick="G.phase=3;render()" style="margin-top:12px">Fin de journée ➡️</button></div>${renderStudents()}`;
+  return html;
+}
+
+function screenEvening(){
+  let html=renderHeader()+`<div class="card fade-in"><h3>🌙 Soir — Debrief</h3><p>La journée est terminée. Tes jauges :</p>`;
+  html+=`<p>⚡ ${G.energy} | 💪 ${G.auth} | ❤️ ${G.trust}</p>`;
+  html+=`<p style="margin-top:8px;font-style:italic;color:#666">"Demain est un autre jour à la Croix-Rousse..."</p>`;
+  if(G.day<5){
+    html+=`<button class="btn btn-primary" onclick="nextDay()" style="margin-top:12px">Jour suivant ➡️</button>`;
+  } else {
+    html+=`<button class="btn btn-primary" onclick="endGame()" style="margin-top:12px">🏆 Fin de la semaine</button>`;
+  }
+  html+=`</div>`;
+  if(G.logs.length>0){
+    html+=`<div class="logs"><b>📋 Journal :</b>${G.logs.slice(0,5).map(l=>`<div class="log">${l}</div>`).join('')}</div>`;
+  }
+  return html;
+}
+
+function screenEnd(){
+  const score=G.energy+G.auth+G.trust;
+  let title,emoji,desc;
+  if(G.energy<=0){title='😮‍💨 Burn-out';emoji='😮‍💨';desc="T'as craqué. Trop de pression, pas assez de pauses. L'école te rappellera... ou pas.";}
+  else if(score>=250){title='⭐ Animateur·rice de l\'année';emoji='🏆';desc="Tu as géré comme un·e chef·fe ! Les élèves t'adorent, les parents te respectent, la directrice t'admire. La Croix-Rousse se souviendra de toi.";}
+  else if(score>=200){title='🤝 Médiateur·rice émérite';emoji='🤝';desc="Tu as privilégié le dialogue. Pas toujours facile, mais les conflits se sont apaisés. Les enfants ont grandi grâce à toi.";}
+  else if(score>=150){title='👍 Survie honorable';emoji='👍';desc="T'as tenu bon. Des hauts, des bas, mais la kermesse est là et tout le monde est content.";}
+  else{title='🚨 Chaos à la Croix-Rousse';emoji='🚨';desc="Les enfants ont pris le dessus. La cour est en feu (pas littéralement, enfin presque). Le directeur soupire.";}
+
+  let html=`<div class="result fade-in"><span class="emoji-big">${emoji}</span><h2>${title}</h2><div class="score">${score}/300</div><p>${desc}</p>`;
+  html+=`<div style="margin-top:15px;font-size:.85em;color:#666"><p>⚡ Énergie finale : ${G.energy}/100</p><p>💪 Autorité finale : ${G.auth}/100</p><p>❤️ Confiance finale : ${G.trust}/100</p></div>`;
+  html+=`<button class="btn btn-primary" onclick="restart()" style="margin-top:16px">🔄 Rejouer</button></div>`;
+  return html;
+}
+
+// ─── LOGIQUE ───
+function pickActivity(id){
+  G.chosenActivity=ACTIVITIES.find(a=>a.id===id);
+  G.energy=clamp(G.energy+(G.chosenActivity.energy||0),0,100);
+  G.phase=1;
+  log(`Activité choisie : ${G.chosenActivity.name}`);
+  render();
+}
+
+function resolveConflict(i){
+  const c=G.currentConflict;
+  const ch=c.choices[i];
+  G.energy=clamp(G.energy+(ch.effects.energy||0),0,100);
+  G.auth=clamp(G.auth+(ch.effects.auth||0),0,100);
+  G.trust=clamp(G.trust+(ch.effects.trust||0),0,100);
+  if(ch.effects.students){
+    Object.entries(ch.effects.students).forEach(([sid,v])=>{
+      G.students[sid]=clamp((G.students[sid]||0)+v,-3,3);
+    });
+  }
+  // Apply activity effects
+  if(G.chosenActivity){
+    G.auth=clamp(G.auth+(G.chosenActivity.auth||0),0,100);
+    G.trust=clamp(G.trust+(G.chosenActivity.trust||0),0,100);
+  }
+  log(`Conflit : ${ch.text}`);
+  G.phase=2;
+  if(G.energy<=0){endGame();return;}
+  render();
+}
+
+function nextDay(){
+  G.day++;G.phase=0;G.chosenActivity=null;
+  G.energy=clamp(G.energy+15,0,100);
+  if(G.day>5){endGame();return;}
+  render();
+}
+
+function endGame(){
+  document.getElementById('app').innerHTML=screenEnd();
+}
+
+function restart(){
+  G={day:1,phase:0,energy:100,auth:50,trust:50,
+     students:{leo:0,maya:0,samir:0,chloe:0},
+     logs:[],chosenActivity:null,
+     phaseName:['Matin','Midi','Après-midi','Soir'],
+     dayName:['Lundi','Mardi','Mercredi','Jeudi','Vendredi']};
+  render();
+}
+
+function render(){
+  if(G.energy<=0){endGame();return;}
+  let html='';
+  switch(G.phase){
+    case 0: html=screenMorning();break;
+    case 1: html=screenConflict();break;
+    case 2: html=screenAfternoon();break;
+    case 3: html=screenEvening();break;
+  }
+  document.getElementById('app').innerHTML=html;
+}
+
+render();
+</script>
+</body>
+</html>
