@@ -6,634 +6,647 @@
 <title>Récré Croix-Rousse</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#2c1810;display:flex;justify-content:center;align-items:center;height:100dvh;overflow:hidden;touch-action:none}
-canvas{display:block;border-radius:8px;max-width:100vw;max-height:100dvh}
-#ui{position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:10}
+body{background:#2c1810;display:flex;justify-content:center;align-items:flex-start;height:100dvh;overflow:hidden;touch-action:none;font-family:-apple-system,sans-serif}
+#wrap{position:relative;max-width:100vw}
+canvas{display:block;border-radius:0 0 8px 8px}
+#dlg{position:absolute;bottom:0;left:0;right:0;background:rgba(20,12,8,.95);color:#fff;padding:14px;display:none;z-index:20;border-radius:14px 14px 0 0;max-height:50vh;overflow-y:auto}
+#dlg.active{display:block}
+#dlg h3{margin-bottom:6px;font-size:1em}
+#dlg p{margin-bottom:4px;font-size:.85em;opacity:.9}
+#dlg .choices{margin-top:10px}
+#dlg .cbtn{display:block;width:100%;padding:12px;margin:6px 0;border:none;border-radius:10px;font-size:.9em;text-align:left;cursor:pointer;color:#fff}
+#dlg .cbtn:active{filter:brightness(.8)}
+#overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0);display:none;z-index:15}
+#overlay.active{display:block;background:rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
+<div id="wrap">
 <canvas id="c"></canvas>
+<div id="overlay"></div>
+<div id="dlg"></div>
+</div>
 <script>
 // ═══════════════════════════════════════
-// RÉCRÉ CROIX-ROUSSE — Top-Down 2D
+// RÉCRÉ CROIX-ROUSSE — V3
 // ═══════════════════════════════════════
-
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d');
+const dlg=document.getElementById('dlg');
+const overlay=document.getElementById('overlay');
+const wrap=document.getElementById('wrap');
 
-// ─── CONSTANTS ───
-const COLS=20,ROWS=13,TS=36; // tile size
-const MAP_W=COLS*TS,MAP_H=ROWS*TS;
-
-// ─── MAP TILES ───
+// ─── MAP ───
+const COLS=20,ROWS=13,TS=36,MAP_W=COLS*TS,MAP_H=ROWS*TS;
 const T={GRASS:0,WALL:1,FLOOR_SALLE:2,FLOOR_COUR:3,FLOOR_CANTINE:4,ROAD:5,DOOR:6};
-
 const map=[
-// 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-  [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], // 0 RUE
-  [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], // 1
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 2 WALL BO
-  [2, 2, 2, 2, 2, 2, 2, 6, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], // 3 SALLE+DOOR+COUR
-  [2, 2, 2, 2, 2, 2, 2, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], // 4
-  [2, 2, 2, 2, 2, 2, 2, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], // 5
-  [2, 2, 2, 2, 2, 2, 2, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3], // 6
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 7 WALL MID
-  [1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1], // 8 CANTINE
-  [1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1], // 9
-  [1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1], // 10
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 11
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 12
+  [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5], // 0 RUE
+  [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5], // 1
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], // 2 WALL TOP
+  [2,2,2,2,2,2,2,6,3,3,3,3,3,3,3,3,3,3,3,3], // 3 SALLE+DOOR+COUR
+  [2,2,2,2,2,2,2,1,3,3,3,3,3,3,3,3,3,3,3,3], // 4
+  [2,2,2,2,2,2,2,1,3,3,3,3,3,3,3,3,3,3,3,3], // 5
+  [2,2,2,2,2,2,2,1,3,3,3,3,3,3,3,3,3,3,3,3], // 6
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], // 7 WALL MID
+  [1,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,1], // 8 CANTINE
+  [1,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,1], // 9
+  [1,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,1], // 10
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], // 11 BOTTOM WALL
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], // 12
 ];
-const ROOM_RECRE={x:8,y:3,w:12,h:4};
-const ROOM_SALLE={x:1,y:3,w:7,h:4};
-const ROOM_CANTINE={x:2,y:8,w:16,h:3};
-const ROOM_RUE={x:0,y:0,w:20,h:2};
+const ROOMS={RECRE:{x:8,y:3,w:12,h:4},SALLE:{x:1,y:3,w:7,h:4},CANTINE:{x:2,y:8,w:16,h:3},RUE:{x:0,y:0,w:20,h:2}};
 
-// Tile walkability
-function walkable(col,row){
-  if(col<0||col>=COLS||row<0||row>=ROWS)return false;
-  const t=map[row][col];
-  return t!==T.WALL;
-}
-
-// ─── PATHFINDING (BFS) ───
+function walkable(c,r){if(c<0||c>=COLS||r<0||r>=ROWS)return false;return map[r][c]!==T.WALL;}
 function bfsPath(sx,sy,tx,ty){
-  const visited=new Set();
-  const key=(x,y)=>x*1000+y;
-  const q=[{x:sx,y:sy,path:[]}];
-  visited.add(key(sx,sy));
+  const v=new Set(),key=(x,y)=>x*1000+y;
+  const q=[{x:Math.round(sx),y:Math.round(sy),p:[]}];v.add(key(Math.round(sx),Math.round(sy)));
   const dirs=[[0,1],[0,-1],[1,0],[-1,0]];
-  while(q.length>0){
-    const c=q.shift();
-    if(Math.abs(c.x-tx)<=1&&Math.abs(c.y-ty)<=1)return c.path;
-    for(const[dX,dY]of dirs){
-      const nx=c.x+dX,ny=c.y+dY;
-      if(!visited.has(key(nx,ny))&&walkable(nx,ny)){
-        visited.add(key(nx,ny));
-        q.push({x:nx,y:ny,path:[...c.path,{x:nx,y:ny}]});
-      }
-    }
-  }
+  while(q.length){const c=q.shift();if(Math.abs(c.x-tx)<=1&&Math.abs(c.y-ty)<=1)return c.p;
+    for(const[dX,dY]of dirs){const nx=c.x+dX,ny=c.y+dY;if(!v.has(key(nx,ny))&&walkable(nx,ny)){v.add(key(nx,ny));q.push({x:nx,y:ny,p:[...c.p,{x:nx,y:ny}]});}}}
   return null;
 }
 
 // ─── GAME STATE ───
 const DAYS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi'];
-const PERIODS=['🌅 Matin','⚽ Récré','🍽️ Midi','🎯 Activité'];
+const PERIODS=['🌅 Accueil','⚽ Récré','🍽️ Cantine','🎯 Activité'];
 const MOODS=['😡','😢','😕','😐','🙂','😄'];
-const NEEDS=['Jouer','Parler','Manger','Bouder','Observer'];
-
 const G={
-  day:0,period:0,
-  timer:0,periodDuration:150, // frames per period (~5s at 30fps)
-  energy:100,auth:50,trust:50,
-  activeConflict:null,
-  conflictTimer:0,
-  selectedStudent:null,
-  radialOpen:false,
-  paused:false,
-  score:0,
-  ended:false,
-};
-
-// ─── PLAYER ───
-const player={
-  x:9,y:5, // start in cour
-  tx:null,ty:null,path:null,pathIdx:0,
-  radius:14,
+  day:0,period:0,timer:0,
+  periodDuration:360, // 12s per period at 30fps
+  energy:100,auth:50,trust:50,reputation:0,
+  activeConflict:null,conflictTimer:0,
+  selectedStudent:null,radialOpen:false,paused:false,
+  ended:false,score:0,endTitle:'',
+  dailyObjectives:[],objectivesDone:0,
+  eventTriggered:{},
+  arcs:{leo:0,maya:0,samir:0,chloe:0,jade:0,theo:0},
+  skills:{ecoute:false,mediation:false,autorite:false,creativite:false},
+  dialogueCB:null,
 };
 
 // ─── STUDENTS ───
 class Student{
   constructor(id,name,emoji,x,y,trait){
     this.id=id;this.name=name;this.emoji=emoji;
-    this.x=x;this.y=y;this.tx=null;this.ty=null;
-    this.trait=trait;
-    this.mood=3; // 0-5
-    this.moodTarget=3;
-    this.need=0;this.needTimer=0;
-    this.relations={leo:0,maya:0,samir:0,chloe:0};
-    this.wanderTimer=0;
-    this.wanderTarget=null;
-    this.hasConflict=false;
-    this.conflictPartner=null;
+    this.x=x;this.y=y;this.tx=null;this.ty=null;this.trait=trait;
+    this.mood=3;this.wanderTimer=0;this.wanderTarget=null;
+    this.hasConflict=false;this.conflictPartner=null;
+    this.arc=0; // 0=hidden,1=discovered,2=progress,3=resolved
   }
   moodEmoji(){return MOODS[this.mood];}
 }
-
 const students=[
   new Student('leo','Léo','🦁',12,4,'Leader turbulent'),
   new Student('maya','Maya','🎨',14,5,'Artiste sensible'),
   new Student('samir','Samir','⚽',10,6,'Sportif impulsif'),
   new Student('chloe','Chloé','👑',16,5,'Manipulatrice'),
+  new Student('jade','Jade','🐣',11,4,'Nouvelle timide'),
+  new Student('theo','Théo','🔭',17,5,'Rêveur HPI'),
 ];
 
-// ─── CAMERA ───
-let camX=0,camY=0,scale=1;
+// ─── PLAYER ───
+const player={x:9,y:5,tx:null,ty:null,path:null,pathIdx:0};
 
+// ─── CANVAS ───
+let scale=1;
 function resizeCanvas(){
-  const w=window.innerWidth,h=window.innerHeight;
+  const w=Math.min(window.innerWidth,760),h=window.innerHeight-0;
   scale=Math.min(w/MAP_W,h/MAP_H);
-  canvas.width=MAP_W*scale;
-  canvas.height=MAP_H*scale;
+  canvas.width=MAP_W*scale;canvas.height=MAP_H*scale;
 }
-resizeCanvas();
-window.addEventListener('resize',resizeCanvas);
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
 
 // ─── INPUT ───
 canvas.addEventListener('pointerdown',e=>{
-  if(G.ended)return;
+  if(G.ended||G.paused)return;
   const rect=canvas.getBoundingClientRect();
-  const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
-  const mx=Math.floor(sx/scale/TS),my=Math.floor(sy/scale/TS);
+  const sx=(e.clientX-rect.left)/scale, sy=(e.clientY-rect.top)/scale;
+  const mx=Math.floor(sx/TS),my=Math.floor(sy/TS);
 
-  // Check if tapping student
-  const tapped=students.find(s=>dist(s.x,s.y,mx,my)<1.5);
+  const tapped=students.find(s=>dist(s.x,s.y,mx,my)<1.8);
   if(tapped&&!tapped.hasConflict){
-    G.selectedStudent=tapped;
-    G.radialOpen=true;
-    G.paused=true;
-    return;
+    G.selectedStudent=tapped;G.radialOpen=true;G.paused=true;return;
   }
-
-  // Close radial if open
-  if(G.radialOpen){
-    G.radialOpen=false;
-    G.paused=false;
-    G.selectedStudent=null;
-    return;
-  }
-
-  // Move player
+  if(G.radialOpen){closeRadial();return;}
   if(walkable(mx,my)){
-    const path=bfsPath(Math.round(player.x),Math.round(player.y),mx,my);
-    if(path&&path.length>0){
-      player.path=path;player.pathIdx=0;
-      player.tx=path[path.length-1].x;player.ty=path[path.length-1].y;
-    }
+    const p=bfsPath(player.x,player.y,mx,my);
+    if(p&&p.length){player.path=p;player.pathIdx=0;player.tx=p[p.length-1].x;player.ty=p[p.length-1].y;}
   }
 });
+
+function closeRadial(){G.radialOpen=false;G.paused=false;G.selectedStudent=null;}
+
+// Overlay tap closes radial
+overlay.addEventListener('pointerdown',()=>{if(G.radialOpen)closeRadial();});
 
 // ─── HELPERS ───
 function dist(x1,y1,x2,y2){return Math.sqrt((x2-x1)**2+(y2-y1)**2);}
 function lerp(a,b,t){return a+(b-a)*t;}
-function clamp(v,min,max){return Math.max(min,Math.min(max,v));}
+function clamp(v,min,max){return Math.max(min,Math.max(max,v));}
 function rng(min,max){return Math.random()*(max-min)+min;}
 
+// ─── SAVE / LOAD ───
+function saveGame(){localStorage.setItem('rcre_save',JSON.stringify({G,player,students}));}
+function loadGame(){
+  const s=localStorage.getItem('rcre_save');
+  if(!s)return false;
+  try{
+    const d=JSON.parse(s);
+    Object.assign(G,d.G);
+    player.x=d.player.x;player.y=d.player.y;player.path=null;
+    d.students.forEach((sd,i)=>{Object.assign(students[i],sd);students[i].__proto__=Student.prototype;});
+    return true;
+  }catch(e){return false;}
+}
+function deleteSave(){localStorage.removeItem('rcre_save');}
+
+// ─── DIALOGUE SYSTEM ───
+function showDialogue(title,text,choices,cb){
+  G.paused=true;G.dialogueCB=cb;
+  overlay.classList.add('active');
+  dlg.classList.add('active');
+  let h=`<h3>${title}</h3><p>${text}</p>`;
+  if(choices&&choices.length){
+    h+='<div class="choices">';
+    choices.forEach((ch,i)=>{
+      const hue=[120,210,280,30,0,180][i%6];
+      h+=`<div class="cbtn" style="background:hsl(${hue},40%,35%)" data-idx="${i}">${ch.text}</div>`;
+    });
+    h+='</div>';
+  }else{
+    h+=`<div class="cbtn" style="background:#555" data-idx="-1">Continuer ➤</div>`;
+  }
+  dlg.innerHTML=h;
+
+  dlg.querySelectorAll('.cbtn').forEach(btn=>{
+    btn.addEventListener('pointerdown',e=>{
+      e.stopPropagation();
+      const idx=parseInt(btn.dataset.idx);
+      overlay.classList.remove('active');dlg.classList.remove('active');
+      G.paused=false;G.dialogueCB=null;
+      if(cb)cb(choices?idx:-1);
+    });
+  });
+}
+
+function simpleDialogue(title,text){
+  return new Promise(r=>showDialogue(title,text,null,r));
+}
+
+function choiceDialogue(title,text,choices){
+  return new Promise(r=>{
+    showDialogue(title,text,choices,(idx)=>{
+      if(idx>=0&&choices[idx].effects){
+        applyEffects(choices[idx].effects);
+      }
+      r(idx);
+    });
+  });
+}
+
+function applyEffects(ef){
+  if(ef.energy)G.energy=clamp(G.energy+ef.energy,0,100);
+  if(ef.auth)G.auth=clamp(G.auth+ef.auth,0,100);
+  if(ef.trust)G.trust=clamp(G.trust+ef.trust,0,100);
+  if(ef.rep)G.reputation+=ef.rep;
+  if(ef.mood){Object.entries(ef.mood).forEach(([id,v])=>{
+    const s=students.find(s=>s.id===id);if(s)s.mood=clamp(s.mood+v,0,5);
+  });}
+  if(ef.arc){Object.entries(ef.arc).forEach(([id,v])=>{
+    const s=students.find(s=>s.id===id);if(s)s.arc=Math.max(s.arc,v);
+  });}
+  if(ef.skill){Object.entries(ef.skill).forEach(([k,v])=>{if(v)G.skills[k]=true;});}
+}
+
 // ─── STUDENT AI ───
+function getStudentRoom(s){
+  if(s.x>=ROOMS.RECRE.x&&s.x<ROOMS.RECRE.x+ROOMS.RECRE.w&&s.y>=ROOMS.RECRE.y&&s.y<ROOMS.RECRE.y+ROOMS.RECRE.h)return ROOMS.RECRE;
+  if(s.x>=ROOMS.SALLE.x&&s.x<ROOMS.SALLE.x+ROOMS.SALLE.w&&s.y>=ROOMS.SALLE.y&&s.y<ROOMS.SALLE.y+ROOMS.SALLE.h)return ROOMS.SALLE;
+  if(s.x>=ROOMS.CANTINE.x&&s.x<ROOMS.CANTINE.x+ROOMS.CANTINE.w&&s.y>=ROOMS.CANTINE.y&&s.y<ROOMS.CANTINE.y+ROOMS.CANTINE.h)return ROOMS.CANTINE;
+  return null;
+}
+
 function updateStudentAI(s){
   if(s.hasConflict)return;
-
-  // Mood decays toward target
-  s.mood=lerp(s.mood,s.moodTarget,.005);
-  s.mood=clamp(Math.round(s.mood*10)/10,0,5);
-
-  // Wander
   s.wanderTimer--;
   if(s.wanderTimer<=0&&!s.wanderTarget){
     s.wanderTimer=rng(60,180);
     const room=getStudentRoom(s);
-    if(room){
-      s.wanderTarget={x:rng(room.x+1,room.x+room.w-1),y:rng(room.y+1,room.y+room.h-1)};
-    }
+    if(room)s.wanderTarget={x:rng(room.x+1,room.x+room.w-1),y:rng(room.y+1,room.y+room.h-1)};
   }
-
-  // Move toward wander target
   if(s.wanderTarget){
     const d=dist(s.x,s.y,s.wanderTarget.x,s.wanderTarget.y);
     if(d<.5){s.wanderTarget=null;s.wanderTimer=rng(30,90);}
-    else{
-      s.x=lerp(s.x,s.wanderTarget.x,.02);
-      s.y=lerp(s.y,s.wanderTarget.y,.02);
-    }
-  }
-
-  // Check if near player
-  const dToPlayer=dist(s.x,s.y,player.x,player.y);
-  if(dToPlayer<3&&s.mood<2){
-    // Unhappy student near player -> seek attention
-    s.wanderTarget={x:player.x+rng(-2,2),y:player.y+rng(-2,2)};
+    else{s.x=lerp(s.x,s.wanderTarget.x,.015);s.y=lerp(s.y,s.wanderTarget.y,.015);}
   }
 }
 
-function getStudentRoom(s){
-  if(s.x>=ROOM_RECRE.x&&s.x<ROOM_RECRE.x+ROOM_RECRE.w&&s.y>=ROOM_RECRE.y&&s.y<ROOM_RECRE.y+ROOM_RECRE.h)return ROOM_RECRE;
-  if(s.x>=ROOM_SALLE.x&&s.x<ROOM_SALLE.x+ROOM_SALLE.w&&s.y>=ROOM_SALLE.y&&s.y<ROOM_SALLE.y+ROOM_SALLE.h)return ROOM_SALLE;
-  if(s.x>=ROOM_CANTINE.x&&s.x<ROOM_CANTINE.x+ROOM_CANTINE.w&&s.y>=ROOM_CANTINE.y&&s.y<ROOM_CANTINE.y+ROOM_CANTINE.h)return ROOM_CANTINE;
-  return null;
-}
-
-// ─── CONFLICT SYSTEM ───
+// ─── CONFLICT ───
 function spawnConflict(){
-  // Find 2 students close to each other with low mood
+  if(G.activeConflict)return;
   for(let i=0;i<students.length;i++){
     for(let j=i+1;j<students.length;j++){
       const a=students[i],b=students[j];
       if(a.hasConflict||b.hasConflict)continue;
-      const d=dist(a.x,a.y,b.x,b.y);
-      if(d<2&&(a.mood<=1||b.mood<=1)){
-        a.hasConflict=true;b.hasConflict=true;
-        a.conflictPartner=b;b.conflictPartner=a;
-        G.activeConflict={a,b,phase:'tension',timer:180}; // 6s tension
-        G.conflictTimer=0;
-        return;
+      if(dist(a.x,a.y,b.x,b.y)<2&&(a.mood<=1||b.mood<=1)){
+        a.hasConflict=b.hasConflict=true;a.conflictPartner=b;b.conflictPartner=a;
+        G.activeConflict={a,b,phase:'tension',timer:180};G.conflictTimer=0;return;
       }
     }
   }
 }
 
-function resolveConflict(choice){
+async function resolveConflict(){
   if(!G.activeConflict)return;
   const {a,b}=G.activeConflict;
-  a.hasConflict=false;b.hasConflict=false;
-  a.conflictPartner=null;b.conflictPartner=null;
+  G.paused=true;
+  const idx=await choiceDialogue(
+    '⚡ Conflit !',`${a.name} ${a.emoji} et ${b.name} ${b.emoji} sont en conflit. Que faire ?`,
+    [
+      {text:'🤝 Médiation — discuter avec les deux',effects:{energy:-15,auth:5,trust:15,mood:{[a.id]:1,[b.id]:1}}},
+      {text:'⚡ Autorité — séparer et punir',effects:{energy:-5,auth:15,trust:-10,mood:{[a.id]:-1,[b.id]:-1}}},
+      {text:'🎯 Diversion — lancer une activité',effects:{energy:-10,auth:0,trust:10}},
+    ]
+  );
+  a.hasConflict=b.hasConflict=false;a.conflictPartner=b.conflictPartner=null;
+  G.activeConflict=null;G.conflictTimer=0;
+  G.paused=false;
 
-  switch(choice){
-    case 'mediate':
-      a.moodTarget=clamp(a.moodTarget+1,0,5);
-      b.moodTarget=clamp(b.moodTarget+1,0,5);
-      G.auth+=5;G.trust+=10;G.energy-=10;
-      break;
-    case 'punish':
-      a.moodTarget=clamp(a.moodTarget-1,0,5);
-      b.moodTarget=clamp(b.moodTarget-1,0,5);
-      G.auth+=15;G.trust-=5;G.energy-=5;
-      break;
-    case 'diverge':
-      // Send students to opposite corners
-      a.wanderTarget={x:rng(8,11),y:rng(3,5)};
-      b.wanderTarget={x:rng(17,19),y:rng(3,5)};
-      G.energy-=15;G.trust+=5;
-      break;
-  }
-  G.activeConflict=null;
-  G.conflictTimer=0;
+  // Check arc progress
+  if(idx===0&&(a.id==='samir'||b.id==='samir')){if(G.arcs.samir<2)G.arcs.samir=2;}
+  if(idx===0&&(a.id==='chloe'||b.id==='chloe')){if(G.arcs.chloe<1)G.arcs.chloe=1;}
 }
 
-// ─── RADIAL MENU ACTIONS ───
-function radialAction(action){
-  if(!G.selectedStudent)return;
+// ─── RADIAL ACTIONS ───
+async function radialAction(action){
   const s=G.selectedStudent;
+  if(!s){closeRadial();return;}
+  closeRadial();
+
   switch(action){
-    case 'talk':s.moodTarget=clamp(s.moodTarget+1,0,5);G.trust+=5;G.energy-=5;break;
-    case 'scold':s.moodTarget=clamp(s.moodTarget-2,0,5);G.auth+=10;G.trust-=3;G.energy-=3;break;
-    case 'console':s.moodTarget=clamp(s.moodTarget+2,0,5);G.trust+=10;G.energy-=10;break;
-    case 'activity':s.need=0;s.needTimer=300;G.trust+=5;G.energy-=5;break;
-    case 'profile':break; // js read
+    case 'talk':
+      await handleTalk(s);break;
+    case 'scold':
+      s.mood=clamp(s.mood-(G.skills.autorite?3:2),0,5);
+      G.auth+=10;G.trust-=3;G.energy-=3;
+      await simpleDialogue('⚡ Gronder',`Tu rappelles fermement les règles à ${s.name}. Il/elle baisse la tête.`);
+      break;
+    case 'console':
+      s.mood=clamp(s.mood+2,0,5);
+      G.trust+=10;G.energy-=10;
+      await simpleDialogue('🤝 Consoler',`Tu prends le temps d'écouter ${s.name}. Un sourire apparaît.`);
+      break;
+    case 'profile':
+      await simpleDialogue(`📋 ${s.name} ${s.emoji}`,
+        `Trait : ${s.trait}\nHumeur : ${s.moodEmoji()}\nArc : ${['Non découvert','Découvert','En cours','Résolu'][s.arc]}`);
+      break;
   }
-  G.radialOpen=false;
-  G.paused=false;
-  G.selectedStudent=null;
+}
+
+async function handleTalk(s){
+  G.energy-=5;G.trust+=5;
+  s.mood=clamp(s.mood+1,0,5);
+
+  // Dialogue contextuel selon l'arc
+  if(s.arc===0){
+    // Decouvrir le probleme
+    switch(s.id){
+      case 'leo':
+        const l1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Mon père dit que je suis nul si je gagne pas au foot..."',
+          [{text:'"Le sport c\'est pour s\'amuser, pas pour gagner."',effects:{trust:5,s:{leo:1}}},
+           {text:'"Tu veux qu\'on essaie un autre sport ?"',effects:{trust:10,arc:{leo:1}}},
+           {text:'"Ton père a tort. Tu es bien plus que ça."',effects:{trust:15,arc:{leo:1}}}]);
+        if(l1>=1&&G.arcs.leo<1)G.arcs.leo=1;
+        break;
+      case 'maya':
+        const m1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Mes parents se disputent tout le temps..."',
+          [{text:'"Je suis là si tu veux en parler."',effects:{trust:10,arc:{maya:1}}},
+           {text:'"Tu veux faire un dessin pour exprimer ça ?"',effects:{trust:15,arc:{maya:1}}},
+           {text:'"Ça va s\'arranger, t\'inquiète."',effects:{trust:3}}]);
+        if(m1>=0&&G.arcs.maya<1)G.arcs.maya=1;
+        break;
+      case 'samir':
+        const s1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Chloé... elle arrête pas de se moquer de moi..."',
+          [{text:'"Tu veux que j\'intervienne ?"',effects:{trust:10,arc:{samir:1}}},
+           {text:'"La prochaine fois, dis-lui d\'arrêter."',effects:{trust:5}},
+           {text:'"Je vais lui parler. Promis."',effects:{trust:15,arc:{samir:1}}}]);
+        if(s1>=0&&G.arcs.samir<1)G.arcs.samir=1;
+        break;
+      case 'chloe':
+        const c1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Ma mère est jamais là. Elle voyage tout le temps pour son travail."',
+          [{text:'"C\'est dur. Tu te sens seule ?"',effects:{trust:10,arc:{chloe:1}}},
+           {text:'"Tu veux une responsabilité ? T\'occuper du matériel ?"',effects:{trust:15,arc:{chloe:1}}},
+           {text:'"Du coup tu embêtes les autres pour exister ?"',effects:{trust:-5}}]);
+        if(c1>=0&&G.arcs.chloe<1)G.arcs.chloe=1;
+        break;
+      case 'jade':
+        const j1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Je connais personne ici. À Paris j\'avais plein d\'amis..."',
+          [{text:'"On va te trouver un binôme sympa !"',effects:{trust:10,arc:{jade:1}}},
+           {text:'"Tu veux présenter Paris aux autres ?"',effects:{trust:15,arc:{jade:1}}},
+           {text:'"Ça viendra, sois patiente."',effects:{trust:3}}]);
+        if(j1>=0&&G.arcs.jade<1)G.arcs.jade=1;
+        break;
+      case 'theo':
+        const t1=await choiceDialogue(`💬 ${s.name} ${s.emoji}`,'"Je m\'ennuie. Les activités sont trop faciles."',
+          [{text:'"Tu veux m\'aider à préparer les ateliers ?"',effects:{trust:10,arc:{theo:1}}},
+           {text:'"Qu\'est-ce qui te passionne en ce moment ?"',effects:{trust:15,arc:{theo:1}}},
+           {text:'"Fais un effort pour t\'intégrer quand même."',effects:{trust:-3}}]);
+        if(t1>=0&&G.arcs.theo<1)G.arcs.theo=1;
+        break;
+    }
+  }else if(s.arc===1){
+    await simpleDialogue(`💬 ${s.name} ${s.emoji}`,'Tu continues à discuter. La confiance s\'installe doucement.');
+    G.trust+=5;
+  }else if(s.arc>=2){
+    await simpleDialogue(`💬 ${s.name} ${s.emoji}`,'Vous avez une vraie relation de confiance maintenant. '+s.name+' te sourit.');
+    G.trust+=3;
+  }
 }
 
 // ─── PERIOD MANAGEMENT ───
-function nextPeriod(){
-  G.timer++;
-  if(G.timer>G.periodDuration){
-    G.timer=0;
-    G.period++;
-    if(G.period>=4){
-      G.period=0;
-      G.day++;
-      G.energy=clamp(G.energy+15,0,100);
-      if(G.day>=5){endGame();return;}
+function checkObjectives(){
+  let done=0;
+  G.dailyObjectives.forEach(obj=>{
+    switch(obj.type){
+      case 'maya_participate':if(students[1].mood>=3)done++;break;
+      case 'no_fight':if(!G.activeConflict||G.activeConflict.phase==='tension')done++;break;
+      case 'jade_speak':if(G.arcs.jade>=1)done++;break;
+      case 'chloe_calm':if(students[3].mood>=3)done++;break;
+      case 'theo_engaged':if(G.arcs.theo>=1)done++;break;
     }
-    // Move students to appropriate room
-    moveStudentsToPeriod();
-    // Move player to appropriate room
-    movePlayerToPeriod();
-  }
-  // Random conflict spawn
-  if(!G.activeConflict&&Math.random()<.003&&G.period===1){ // récré
-    spawnConflict();
-  }
-  if(!G.activeConflict&&Math.random()<.003&&G.period===2){ // midi
-    spawnConflict();
-  }
+  });
+  G.objectivesDone=done;
+  if(done>=G.dailyObjectives.length)G.reputation+=10;
 }
 
-function moveStudentsToPeriod(){
-  const positions={
-    0:ROOM_SALLE, // matin
-    1:ROOM_RECRE, // récré
-    2:ROOM_CANTINE, // midi
-    3:ROOM_SALLE, // activité
-  };
-  const room=positions[G.period]||ROOM_RECRE;
+function getDayObjectives(){
+  const obj=[
+    [{type:'maya_participate',text:'Que Maya participe à une activité de groupe'}],
+    [{type:'no_fight',text:'Pas de bagarre dans la cour'},{type:'jade_speak',text:'Faire parler Jade'}],
+    [{type:'chloe_calm',text:'Apaiser Chloé'},{type:'theo_engaged',text:'Intéresser Théo'}],
+    [{type:'jade_speak',text:'Jade doit se faire un·e ami·e'},{type:'no_fight',text:'Zéro conflit aujourd\'hui'}],
+    [{type:'maya_participate',text:'Maya doit présenter son travail au groupe'}],
+  ];
+  return obj[G.day]||[];
+}
+
+function moveAllToPeriod(){
+  const pos={0:ROOMS.SALLE,1:ROOMS.RECRE,2:ROOMS.CANTINE,3:ROOMS.SALLE};
+  const room=pos[G.period]||ROOMS.RECRE;
   students.forEach(s=>{
     s.x=rng(room.x+1,room.x+room.w-1);
     s.y=rng(room.y+1,room.y+room.h-1);
     s.wanderTarget=null;s.wanderTimer=0;
   });
+  const pp={0:{x:4,y:5},1:{x:14,y:5},2:{x:9,y:9},3:{x:4,y:5}};
+  const p=pp[G.period]||{x:9,y:5};
+  player.x=p.x;player.y=p.y;player.path=null;
 }
 
-function movePlayerToPeriod(){
-  const positions={
-    0:{x:4,y:5}, // salle
-    1:{x:14,y:5}, // cour
-    2:{x:9,y:9}, // cantine
-    3:{x:4,y:5}, // salle
-  };
-  const p=positions[G.period]||{x:9,y:5};
-  player.x=p.x;player.y=p.y;player.path=null;
+async function nextPeriod(){
+  G.timer++;
+  if(G.timer>G.periodDuration){
+    G.timer=0;
+    checkObjectives();
+
+    // End-of-day events
+    if(G.period===3){
+      G.reputation+=5;
+      if(G.objectivesDone>0)G.reputation+=5*G.objectivesDone;
+      G.energy=clamp(G.energy+10,0,100);
+    }
+
+    // Show objective results
+    if(G.period===3&&G.dailyObjectives.length>0){
+      await simpleDialogue('📋 Bilan du jour',`Objectifs remplis : ${G.objectivesDone}/${G.dailyObjectives.length}`);
+    }
+
+    G.period++;
+    if(G.period>=4){
+      G.period=0;G.day++;G.energy=clamp(G.energy+15,0,100);
+      if(G.day>=5){endGame();return;}
+      G.dailyObjectives=getDayObjectives();
+      G.eventTriggered={};
+
+      // Trigger daily event
+      await triggerDayEvent();
+    }
+    moveAllToPeriod();
+    saveGame();
+  }
+
+  if(!G.activeConflict&&Math.random()<.005&&(G.period===1||G.period===2))spawnConflict();
+  if(G.activeConflict&&G.activeConflict.phase==='tension'){
+    G.conflictTimer++;
+    if(G.conflictTimer>180){G.activeConflict.phase='conflict';G.conflictTimer=0;}
+    const mp=G.activeConflict;
+    if(dist(player.x,player.y,mp.a.x,mp.a.y)<2||dist(player.x,player.y,mp.b.x,mp.b.y)<2)G.conflictTimer-=2;
+  }
+  if(G.activeConflict&&G.activeConflict.phase==='conflict'){
+    G.conflictTimer++;
+    if(G.conflictTimer>240){G.auth-=20;G.trust-=15;resolveConflict();}
+  }
+}
+
+async function triggerDayEvent(){
+  switch(G.day){
+    case 0: // Lundi - tutoriel
+      await simpleDialogue('🏫 Lundi — Premier jour',
+        'Martine, la directrice : "Bienvenue Sam ! Voilà vos 6 élèves. '
+        +'Ils ont chacun leur caractère. Observez, écoutez, et surtout... soyez patient·e. Bonne chance !"');
+      break;
+    case 1: // Mardi - pluie
+      G.energy-=10;
+      await simpleDialogue('🌧️ Mardi — Jour de pluie',
+        'Il pleut des cordes sur la Croix-Rousse. Récré à l\'intérieur. '
+        +'Les enfants sont surexcités. Martine vous observe du coin de l\'œil.');
+      break;
+    case 2: // Mercredi - sortie
+      G.trust+=10;
+      await simpleDialogue('🏘️ Mercredi — Sortie aux traboules',
+        'Vous emmenez la classe explorer les traboules de la Croix-Rousse. '
+        +'Maya et Jade marchent ensemble pour la première fois. Une petite victoire.');
+      break;
+    case 3: // Jeudi - inspection
+      await simpleDialogue('🔍 Jeudi — Inspection',
+        'Martine fait son inspection trimestrielle. La pression monte. '
+        +'M. Durand, le père de Léo, vous attend à la sortie...');
+      G.auth-=10;
+      break;
+    case 4: // Vendredi - kermesse
+      await simpleDialogue('🎪 Vendredi — Kermesse !',
+        'C\'est le grand jour ! Tous les parents sont là. Stand de gâteaux, jeux, '
+        +'et la remise des prix. Tout ce que vous avez construit cette semaine va se jouer maintenant.');
+      break;
+  }
 }
 
 // ─── GAME LOOP ───
 function update(){
-  if(G.ended)return;
-  if(!G.paused){
-    // Move player
-    if(player.path&&player.pathIdx<player.path.length){
-      const target=player.path[player.pathIdx];
-      const dx=target.x-player.x,dy=target.y-player.y;
-      const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<.1){player.pathIdx++;}
-      else{player.x+=dx/d*.1;player.y+=dy/d*.1;}
-    }
+  if(G.ended||G.paused)return;
 
-    // Update students
-    students.forEach(s=>updateStudentAI(s));
-
-    // Update conflict
-    if(G.activeConflict){
-      G.conflictTimer++;
-      if(G.activeConflict.phase==='tension'&&G.conflictTimer>180){
-        G.activeConflict.phase='conflict';
-        G.conflictTimer=0;
-      }
-      if(G.activeConflict.phase==='conflict'&&G.conflictTimer>240){
-        // Escalation
-        G.auth-=15;G.trust-=10;G.energy-=15;
-        students.forEach(s=>{if(s.mood<3)s.mood-=1;});
-        resolveConflict('punish'); // auto-punish
-      }
-      // Player proximity auto-resolves tension slightly
-      const mp=G.activeConflict;
-      const d1=dist(player.x,player.y,mp.a.x,mp.a.y);
-      const d2=dist(player.x,player.y,mp.b.x,mp.b.y);
-      if((d1<2||d2<2)&&mp.phase==='tension'){
-        // Player nearby slows escalation
-        G.conflictTimer-=2;
-      }
-    }
-
-    // Period timer
-    nextPeriod();
+  // Move player
+  if(player.path&&player.pathIdx<player.path.length){
+    const t=player.path[player.pathIdx];const dx=t.x-player.x,dy=t.y-player.y;const d=Math.sqrt(dx*dx+dy*dy);
+    if(d<.1)player.pathIdx++;else{player.x+=dx/d*.1;player.y+=dy/d*.1;}
   }
 
-  // Clamp values
-  G.energy=clamp(G.energy,0,100);
-  G.auth=clamp(G.auth,0,100);
-  G.trust=clamp(G.trust,0,100);
-  if(G.energy<=0)endGame();
+  students.forEach(s=>updateStudentAI(s));
 }
 
-// ─── RENDER ───
 function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save();
-  ctx.scale(scale,scale);
+  ctx.save();ctx.scale(scale,scale);
 
-  // Draw map
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const t=map[r][c];
-      let color='#7ec850'; // grass
-      if(t===T.WALL)color='#8b7355';
-      else if(t===T.FLOOR_SALLE)color='#e8d5c4';
-      else if(t===T.FLOOR_COUR)color='#c4a882';
-      else if(t===T.FLOOR_CANTINE)color='#f5e6d3';
-      else if(t===T.ROAD)color='#999';
-      else if(t===T.DOOR)color='#b8956a';
-      ctx.fillStyle=color;
-      ctx.fillRect(c*TS,r*TS,TS,TS);
-      // Grid lines
-      ctx.strokeStyle='rgba(0,0,0,.05)';
-      ctx.strokeRect(c*TS,r*TS,TS,TS);
-    }
+  // Map
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const t=map[r][c];
+    let color='#7ec850';
+    if(t===T.WALL)color='#8b7355';else if(t===T.FLOOR_SALLE)color='#e8d5c4';
+    else if(t===T.FLOOR_COUR)color='#c4a882';else if(t===T.FLOOR_CANTINE)color='#f5e6d3';
+    else if(t===T.ROAD)color='#999';else if(t===T.DOOR)color='#b8956a';
+    ctx.fillStyle=color;ctx.fillRect(c*TS,r*TS,TS,TS);
+    ctx.strokeStyle='rgba(0,0,0,.05)';ctx.strokeRect(c*TS,r*TS,TS,TS);
   }
+  ctx.font='9px sans-serif';ctx.fillStyle='rgba(0,0,0,.3)';
+  ctx.fillText('🏫 Salle activités',2*TS+4,5*TS-4);ctx.fillText('⚽ Cour de récré',11*TS,5*TS-4);
+  ctx.fillText('🍽️ Cantine',8*TS,10*TS-4);ctx.fillText('🏘️ Rue Croix-Rousse',6*TS,1*TS+12);
 
-  // Draw room labels
-  ctx.font='9px sans-serif';
-  ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.fillText('🏫 Salle d\'activités',2*TS+4,5*TS-4);
-  ctx.fillText('⚽ Cour de récré',11*TS,5*TS-4);
-  ctx.fillText('🍽️ Cantine',8*TS,10*TS-4);
-  ctx.fillText('🏘️ Rue Croix-Rousse',6*TS,1*TS+12);
-
-  // Draw conflict
+  // Conflict
   if(G.activeConflict){
     const {a,b,phase}=G.activeConflict;
     const mx=(a.x+b.x)/2*TS,my=(a.y+b.y)/2*TS-20;
     const size=phase==='tension'?20:30;
     ctx.fillStyle=phase==='tension'?'rgba(255,165,0,.6)':'rgba(255,0,0,.6)';
     ctx.beginPath();ctx.arc(mx,my,size,0,Math.PI*2);ctx.fill();
-    ctx.font='14px sans-serif';ctx.fillStyle='#fff';
-    ctx.fillText(phase==='tension'?'💢':'💥',mx-10,my+5);
+    ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.fillText(phase==='tension'?'💢':'💥',mx-10,my+5);
   }
 
-  // Draw students
+  // Students
   students.forEach(s=>{
     const sx=s.x*TS,sy=s.y*TS-2;
-    // Shadow
-    ctx.fillStyle='rgba(0,0,0,.2)';
-    ctx.beginPath();ctx.ellipse(sx,sy+12,12,5,0,0,Math.PI*2);ctx.fill();
-    // Body
-    if(s.hasConflict){
-      ctx.fillStyle='#ff6b6b';
-      const pulse=1+Math.sin(Date.now()/200)*.2;
-      ctx.beginPath();ctx.arc(sx,sy,14*pulse,0,Math.PI*2);ctx.fill();
-    }else{
-      ctx.fillStyle=moodColor(s.mood);
-      ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);ctx.fill();
-    }
-    // Face
-    ctx.font='18px sans-serif';ctx.fillStyle='#000';
-    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(sx,sy+12,12,5,0,0,Math.PI*2);ctx.fill();
+    if(s.hasConflict){ctx.fillStyle='#ff6b6b';const p=1+Math.sin(Date.now()/200)*.2;ctx.beginPath();ctx.arc(sx,sy,14*p,0,Math.PI*2);ctx.fill();}
+    else{ctx.fillStyle=s.mood<=1?'#e74c3c':s.mood<=2?'#f39c12':s.mood<=3?'#f1c40f':s.mood<=4?'#2ecc71':'#27ae60';ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);ctx.fill();}
+    ctx.font='18px sans-serif';ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(s.emoji,sx,sy-1);
-    // Mood emoji above
-    ctx.font='12px sans-serif';
-    ctx.fillText(s.moodEmoji(),sx,sy-20);
-    // Name
-    ctx.font='8px sans-serif';ctx.fillStyle='#333';
-    ctx.fillText(s.name,sx,sy+24);
-    // Target indicator
-    if(s.wanderTarget){
-      ctx.fillStyle='rgba(255,255,255,.3)';
-      ctx.beginPath();ctx.arc(s.wanderTarget.x*TS,s.wanderTarget.y*TS,4,0,Math.PI*2);ctx.fill();
-    }
+    ctx.font='12px sans-serif';ctx.fillText(s.moodEmoji(),sx,sy-20);
+    ctx.font='7px sans-serif';ctx.fillStyle='#333';ctx.fillText(s.name,sx,sy+24);
+    if(s.arc>=3)ctx.fillText('⭐',sx,sy-30);
   });
 
-  // Draw player
+  // Player
   const px=player.x*TS,py=player.y*TS;
-  ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.beginPath();ctx.ellipse(px,py+14,14,5,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#3498db';
-  ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#fff';ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle='#fff';ctx.font='20px sans-serif';
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillText('🧑‍🏫',px,py);
-  ctx.font='8px sans-serif';ctx.fillStyle='#fff';
-  ctx.fillText('VOUS',px,py+26);
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(px,py+14,14,5,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#3498db';ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🧑‍🏫',px,py);
 
-  // Draw path preview
-  if(player.path){
-    player.path.forEach((p,i)=>{
-      if(i>player.pathIdx){
-        ctx.fillStyle='rgba(255,255,255,.3)';
-        ctx.beginPath();ctx.arc(p.x*TS,p.y*TS,3,0,Math.PI*2);ctx.fill();
-      }
+  // Path
+  if(player.path)player.path.forEach((p,i)=>{if(i>player.pathIdx){ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(p.x*TS,p.y*TS,3,0,Math.PI*2);ctx.fill();}});
+
+  // Radial menu
+  if(G.radialOpen&&G.selectedStudent){
+    const s=G.selectedStudent;const mx=s.x*TS,my=s.y*TS-55;
+    const items=[
+      {i:0,label:'💬 Parler',color:'#2ecc71',action:'talk'},
+      {i:1,label:'🤝 Consoler',color:'#3498db',action:'console'},
+      {i:2,label:'📋 Profil',color:'#95a5a6',action:'profile'},
+      {i:3,label:'⚡ Gronder',color:'#e74c3c',action:'scold'},
+    ];
+    const r=48,startAngle=-Math.PI/2,arc=Math.PI*2/items.length;
+    ctx.fillStyle='rgba(0,0,0,.75)';ctx.beginPath();ctx.arc(mx,my,r+20,0,Math.PI*2);ctx.fill();
+    G._rbuttons=items.map(item=>{
+      const angle=startAngle+item.i*arc;
+      const bx=mx+Math.cos(angle+arc/2)*r,by=my+Math.sin(angle+arc/2)*r;
+      ctx.fillStyle=item.color;ctx.beginPath();ctx.arc(bx,by,16,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.arc(bx,by,16,0,Math.PI*2);ctx.stroke();
+      ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(item.label.split(' ')[0],bx,by);
+      return{x:bx,y:by,r:16,action:item.action};
     });
   }
 
-  // Draw radial menu
-  if(G.radialOpen&&G.selectedStudent){
-    const s=G.selectedStudent;
-    const mx=s.x*TS,my=s.y*TS-50;
-    drawRadialMenu(mx,my);
-  }
-
   ctx.restore();
-
-  // HUD (in screen coords)
   drawHUD();
 }
 
-function moodColor(m){
-  if(m<=1)return'#e74c3c';if(m<=2)return'#f39c12';if(m<=3)return'#f1c40f';
-  if(m<=4)return'#2ecc71';return'#27ae60';
-}
-
-function drawRadialMenu(cx,cy){
-  const items=[
-    {label:'💬 Parler',action:'talk',color:'#2ecc71'},
-    {label:'🤝 Consoler',action:'console',color:'#3498db'},
-    {label:'🎯 Activité',action:'activity',color:'#9b59b6'},
-    {label:'📋 Profil',action:'profile',color:'#95a5a6'},
-    {label:'⚡ Gronder',action:'scold',color:'#e74c3c'},
-  ];
-  const r=55,startAngle=-Math.PI/2,arc=Math.PI*2/items.length;
-
-  // Background
-  ctx.fillStyle='rgba(0,0,0,.7)';
-  ctx.beginPath();ctx.arc(cx,cy,r+25,0,Math.PI*2);ctx.fill();
-
-  items.forEach((item,i)=>{
-    const angle=startAngle+i*arc;
-    const bx=cx+Math.cos(angle+arc/2)*r;
-    const by=cy+Math.sin(angle+arc/2)*r;
-
-    // Button
-    ctx.fillStyle=item.color;
-    ctx.beginPath();ctx.arc(bx,by,18,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#fff';ctx.lineWidth=1;
-    ctx.beginPath();ctx.arc(bx,by,18,0,Math.PI*2);ctx.stroke();
-
-    // Icon
-    ctx.font='16px sans-serif';ctx.fillStyle='#fff';
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(item.label.split(' ')[0],bx,by);
-  });
-
-  // Hit test storage
-  G._radialButtons=items.map((item,i)=>{
-    const angle=startAngle+i*arc;
-    return{
-      x:cx+Math.cos(angle+arc/2)*r,
-      y:cy+Math.sin(angle+arc/2)*r,
-      r:18,action:item.action
-    };
-  });
-}
-
-// Handle radial button tap
-canvas.addEventListener('pointerdown',function radHandler(e){
-  if(!G.radialOpen||!G._radialButtons)return true;
-  const rect=canvas.getBoundingClientRect();
-  const sx=(e.clientX-rect.left)/scale, sy=(e.clientY-rect.top)/scale;
-  for(const btn of G._radialButtons){
-    if(dist(sx/TS,sy/TS,btn.x/TS,btn.y/TS)<btn.r/TS+.3){
-      radialAction(btn.action);
-      e.stopPropagation();
-      return;
-    }
-  }
-  // Click outside -> close
-  G.radialOpen=false;
-  G.paused=false;
-  G.selectedStudent=null;
-});
-
 function drawHUD(){
   const w=canvas.width;
-  // Top bar
-  ctx.fillStyle='rgba(0,0,0,.7)';
-  ctx.fillRect(0,0,w,44);
-  ctx.font='bold 12px sans-serif';ctx.fillStyle='#fff';
-  ctx.textAlign='center';
-  ctx.fillText(`📅 ${DAYS[G.day]} | ${PERIODS[G.period]} | ⏱️ ${Math.ceil((G.periodDuration-G.timer)/30)}s`,w/2,16);
-  ctx.textAlign='left';
-  ctx.fillText(`⚡${Math.round(G.energy)}`,8,30);
-  ctx.fillText(`💪${Math.round(G.auth)}`,w-190,30);
-  ctx.fillText(`❤️${Math.round(G.trust)}`,w-100,30);
-  // Gauge bars
-  drawBar(8,34,G.energy,'#27ae60');
-  drawBar(w-190,34,G.auth,'#e67e22');
-  drawBar(w-100,34,G.trust,'#3498db');
+  ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,w,40);
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';
+  ctx.fillText(`📅 ${DAYS[G.day]} | ${PERIODS[G.period]} | ⏱ ${Math.ceil((G.periodDuration-G.timer)/30)}s`,w/2,14);
+  ctx.textAlign='left';ctx.font='10px sans-serif';
+  drawHBar(6,22,G.energy,'#27ae60','⚡');drawHBar(w-185,22,G.auth,'#e67e22','💪');drawHBar(w-95,22,G.trust,'#3498db','❤️');
+  ctx.fillText(`⭐${G.reputation}`,w-40,22);
+  // Objectives
+  if(G.dailyObjectives.length){
+    ctx.font='8px sans-serif';ctx.textAlign='center';
+    ctx.fillText(`Objectifs: ${G.objectivesDone}/${G.dailyObjectives.length}`,w/2,34);
+  }
+}
+function drawHBar(x,y,val,color,icon){
+  ctx.fillStyle='#555';ctx.fillRect(x,y,56,5);
+  ctx.fillStyle=color;ctx.fillRect(x,y,56*val/100,5);
+  ctx.fillText(`${icon}${Math.round(val)}`,x+58,y+4);
 }
 
-function drawBar(x,y,val,color){
-  ctx.fillStyle='#555';
-  ctx.fillRect(x,y,56,6);
-  ctx.fillStyle=color;
-  ctx.fillRect(x,y,56*val/100,6);
-}
+// Radial tap handler
+canvas.addEventListener('pointerdown',function rh(e){
+  if(!G.radialOpen||!G._rbuttons)return;
+  const rect=canvas.getBoundingClientRect();
+  const sx=(e.clientX-rect.left)/scale,sy=(e.clientY-rect.top)/scale;
+  for(const b of G._rbuttons){
+    if(dist(sx,sy,b.x,b.y)<b.r+4){radialAction(b.action);e.stopPropagation();return;}
+  }
+  closeRadial();
+});
 
 // ─── END GAME ───
-function endGame(){
+async function endGame(){
   G.ended=true;
-  const score=G.energy+G.auth+G.trust;
+  const resolved=Object.values(G.arcs).filter(a=>a>=2).length;
+  const score=G.energy+G.auth+G.trust+G.reputation;
   let title,emoji;
-  if(G.energy<=0){title='Burn-out 😮‍💨';emoji='😮‍💨';}
-  else if(score>=250){title='Animateur·rice de l\'année ⭐';emoji='🏆';}
-  else if(score>=200){title='Médiateur·rice 🤝';emoji='🤝';}
-  else if(score>=150){title='Survie honorable 👍';emoji='👍';}
-  else{title='Chaos à la Croix-Rousse 🚨';emoji='🚨';}
-  G.score=score;
-  G.endTitle=title;G.endEmoji=emoji;
+  if(G.energy<=0){title='Burn-out';emoji='😮‍💨';}
+  else if(resolved>=5&&score>=250){title='L\'étoile de la Croix-Rousse';emoji='⭐';}
+  else if(resolved>=3){title='Médiateur·rice de quartier';emoji='🤝';}
+  else if(G.reputation>=30){title='CDI proposé par Martine';emoji='💼';}
+  else if(score>=200){title='En apprentissage';emoji='🌱';}
+  else{title='L\'incident de la kermesse';emoji='🔥';}
+  G.score=score;G.endTitle=title;G.endEmoji=emoji;
+  deleteSave();
 
-  // Render end screen overlay
-  setTimeout(()=>{
-    ctx.fillStyle='rgba(0,0,0,.8)';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.font='bold 24px sans-serif';ctx.fillStyle='#fff';
-    ctx.textAlign='center';
-    ctx.fillText(emoji,canvas.width/2,canvas.height/2-60);
-    ctx.fillText(title,canvas.width/2,canvas.height/2-30);
-    ctx.font='18px sans-serif';
-    ctx.fillText(`Score : ${score}/300`,canvas.width/2,canvas.height/2+10);
-    ctx.font='14px sans-serif';
-    ctx.fillText('Tap pour rejouer',canvas.width/2,canvas.height/2+50);
-  },100);
+  ctx.fillStyle='rgba(0,0,0,.85)';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.font='bold 22px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';
+  ctx.fillText(emoji,canvas.width/2,canvas.height/2-70);
+  ctx.fillText(title,canvas.width/2,canvas.height/2-35);
+  ctx.font='16px sans-serif';
+  ctx.fillText(`Score : ${score} | Arcs résolus : ${resolved}/6`,canvas.width/2,canvas.height/2);
+  ctx.font='13px sans-serif';
+  ctx.fillText(`⚡${Math.round(G.energy)} 💪${Math.round(G.auth)} ❤️${Math.round(G.trust)} ⭐${G.reputation}`,canvas.width/2,canvas.height/2+30);
+  ctx.fillText('Tap pour rejouer',canvas.width/2,canvas.height/2+55);
 
-  canvas.addEventListener('pointerdown',function restartHandler(){
-    location.reload();
-  },{once:true});
+  canvas.addEventListener('pointerdown',()=>{location.reload();},{once:true});
 }
 
 // ─── INIT ───
-moveStudentsToPeriod();
-movePlayerToPeriod();
-
-// ─── GAME LOOP ───
-function loop(){
-  update();
-  render();
-  requestAnimationFrame(loop);
+async function init(){
+  const loaded=loadGame();
+  if(!loaded){
+    G.dailyObjectives=getDayObjectives();
+    moveAllToPeriod();
+    await triggerDayEvent();
+    saveGame();
+  }
 }
-loop();
+init().then(()=>{
+  function loop(){update();render();if(!G.ended)requestAnimationFrame(loop);}
+  loop();
+
+  // Period timer loop
+  setInterval(async()=>{if(!G.ended&&!G.paused)await nextPeriod();},1000);
+});
 </script>
 </body>
 </html>
