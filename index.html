@@ -494,101 +494,214 @@ function update(){
   students.forEach(s=>updateStudentAI(s));
 }
 
+// ═══ DOFUS-LIKE RENDERING ═══
+const STROKE='#1a1a2e';
+const CHAR_COLORS={leo:'#ff9800',maya:'#e91e63',samir:'#4caf50',chloe:'#9c27b0',jade:'#00bcd4',theo:'#3f51b5'};
+const CHAR_BODY={leo:'#e65100',maya:'#ad1457',samir:'#2e7d32',chloe:'#6a1b9a',jade:'#00838f',theo:'#1a237e'};
+
+function drawDofusChar(cx,cy,id,scale,isPlayer,emoji){
+  const s=isPlayer?1.2:1;
+  const headR=12*s,w=headR*2,h=headR*2;
+  const bodyW=10*s,bodyH=12*s;
+  const headColor=isPlayer?'#42a5f5':CHAR_COLORS[id];
+  const bodyColor=isPlayer?'#1e88e5':CHAR_BODY[id];
+
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,.25)';
+  ctx.beginPath();ctx.ellipse(cx,cy+15*s,14*s,5*s,0,0,Math.PI*2);ctx.fill();
+
+  // Legs
+  const lY=cy+4*s;
+  ctx.strokeStyle=STROKE;ctx.lineWidth=2;
+  ['#333','#333'].forEach((c,i)=>{
+    ctx.fillStyle=c;
+    ctx.beginPath();ctx.roundRect(cx-5*s+i*6*s,lY,5*s,8*s,3);ctx.fill();ctx.stroke();
+  });
+
+  // Body
+  ctx.fillStyle=bodyColor;
+  ctx.beginPath();ctx.roundRect(cx-bodyW/2,cy-2*s,bodyW,bodyH,4);ctx.fill();
+  ctx.strokeStyle=STROKE;ctx.lineWidth=2;ctx.stroke();
+
+  // Arms
+  [-1,1].forEach(dir=>{
+    ctx.fillStyle=bodyColor;
+    ctx.beginPath();ctx.roundRect(cx+dir*7*s,cy-2*s,5*s,10*s,3);ctx.fill();ctx.stroke();
+  });
+
+  // Head
+  const hX=cx-headR, hY=cy-18*s;
+  ctx.fillStyle=headColor;
+  ctx.beginPath();ctx.arc(cx,hY+headR,headR,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=STROKE;ctx.lineWidth=2.5;ctx.stroke();
+
+  // Hat (player only)
+  if(isPlayer){
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.roundRect(cx-8,cy-22*s,16,6,2);ctx.fill();ctx.strokeStyle=STROKE;ctx.lineWidth=2;ctx.stroke();
+  }
+
+  // Face
+  ctx.fillStyle=STROKE;
+  [-4,4].forEach(dx=>{ctx.beginPath();ctx.arc(cx+dx,hY+headR-3,2,0,Math.PI*2);ctx.fill();});
+  ctx.beginPath();ctx.arc(cx,hY+headR+2,3,0,Math.PI);ctx.strokeStyle=STROKE;ctx.lineWidth=1.5;ctx.stroke();
+
+  // Emoji above
+  if(emoji){
+    ctx.font=`${14*s}px sans-serif`;ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(emoji,cx,cy-26*s);
+  }
+}
+
+function dofusTile(cx,cy,color,pattern){
+  const x=cx*TS,y=cy*TS;
+  ctx.fillStyle=color;
+  ctx.fillRect(x+1,y+1,TS-2,TS-2);
+  if(pattern){
+    ctx.fillStyle=pattern;
+    for(let px=2;px<TS-4;px+=6)for(let py=2;py<TS-4;py+=6){
+      ctx.beginPath();ctx.arc(x+px,y+py,1,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.strokeStyle='rgba(0,0,0,.08)';ctx.lineWidth=1;
+  ctx.strokeRect(x,y,TS,TS);
+}
+
 function render(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.save();ctx.scale(scale,scale);
 
+  // BG
+  ctx.fillStyle='#16213e';ctx.fillRect(0,0,MAP_W,MAP_H);
+
   // Map
   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     const t=map[r][c];
-    let color='#7ec850';
-    if(t===T.WALL)color='#8b7355';else if(t===T.FLOOR_SALLE)color='#e8d5c4';
-    else if(t===T.FLOOR_COUR)color='#c4a882';else if(t===T.FLOOR_CANTINE)color='#f5e6d3';
-    else if(t===T.ROAD)color='#999';else if(t===T.DOOR)color='#b8956a';
-    ctx.fillStyle=color;ctx.fillRect(c*TS,r*TS,TS,TS);
-    ctx.strokeStyle='rgba(0,0,0,.05)';ctx.strokeRect(c*TS,r*TS,TS,TS);
+    if(t===T.WALL)dofusTile(c,r,'#795548',null);
+    else if(t===T.FLOOR_SALLE)dofusTile(c,r,'#d7ccc8','rgba(255,255,255,.3)');
+    else if(t===T.FLOOR_COUR)dofusTile(c,r,'#c4a882','rgba(255,255,255,.2)');
+    else if(t===T.FLOOR_CANTINE)dofusTile(c,r,'#ffe0b2',null);
+    else if(t===T.ROAD)dofusTile(c,r,'#9e9e9e',null);
+    else if(t===T.DOOR)dofusTile(c,r,'#a1887f',null);
+    else dofusTile(c,r,'#4caf50','rgba(255,255,255,.15)');
   }
-  ctx.font='9px sans-serif';ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.fillText('🏫 Salle activités',2*TS+4,5*TS-4);ctx.fillText('⚽ Cour de récré',11*TS,5*TS-4);
-  ctx.fillText('🍽️ Cantine',8*TS,10*TS-4);ctx.fillText('🏘️ Rue Croix-Rousse',6*TS,1*TS+12);
+
+  // Room labels
+  ctx.font='bold 9px sans-serif';ctx.fillStyle='rgba(255,255,255,.5)';ctx.textAlign='center';
+  ctx.fillText('SALLE ACTIVITES',4*TS,5*TS-4);
+  ctx.fillText('COUR DE RECRE',14*TS,5*TS-4);
+  ctx.fillText('CANTINE',9*TS,10*TS-4);
+  ctx.fillText('RUE CROIX-ROUSSE',10*TS,1*TS+10);
+
+  // Decor elements
+  // Tree in cour
+  [10,18].forEach(dx=>{
+    const tx=dx*TS,ty=6.2*TS;
+    ctx.fillStyle='#5d4037';ctx.fillRect(tx-2,ty-6,4,14);ctx.strokeStyle=STROKE;ctx.lineWidth=2;ctx.strokeRect(tx-2,ty-6,4,14);
+    ctx.fillStyle='#388e3c';ctx.beginPath();ctx.arc(tx,ty-12,10,0,Math.PI*2);ctx.fill();ctx.strokeStyle=STROKE;ctx.lineWidth=2.5;ctx.stroke();
+  });
+  // Bench in cour
+  ctx.fillStyle='#8d6e63';ctx.fillRect(11*TS,6.5*TS,24,4);ctx.strokeStyle=STROKE;ctx.lineWidth=2;ctx.strokeRect(11*TS,6.5*TS,24,4);
 
   // Conflict
   if(G.activeConflict){
     const {a,b,phase}=G.activeConflict;
-    const mx=(a.x+b.x)/2*TS,my=(a.y+b.y)/2*TS-20;
-    const size=phase==='tension'?20:30;
-    ctx.fillStyle=phase==='tension'?'rgba(255,165,0,.6)':'rgba(255,0,0,.6)';
+    const mx=(a.x+b.x)/2*TS,my=(a.y+b.y)/2*TS-22;
+    const size=phase==='tension'?22:32;
+    ctx.fillStyle=phase==='tension'?'rgba(255,165,0,.5)':'rgba(255,60,60,.5)';
     ctx.beginPath();ctx.arc(mx,my,size,0,Math.PI*2);ctx.fill();
-    ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.fillText(phase==='tension'?'💢':'💥',mx-10,my+5);
+    ctx.strokeStyle=STROKE;ctx.lineWidth=3;ctx.stroke();
+    ctx.font='18px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(phase==='tension'?'💢':'💥',mx,my);
   }
 
   // Students
   students.forEach(s=>{
-    const sx=s.x*TS,sy=s.y*TS-2;
-    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(sx,sy+12,12,5,0,0,Math.PI*2);ctx.fill();
-    if(s.hasConflict){ctx.fillStyle='#ff6b6b';const p=1+Math.sin(Date.now()/200)*.2;ctx.beginPath();ctx.arc(sx,sy,14*p,0,Math.PI*2);ctx.fill();}
-    else{ctx.fillStyle=s.mood<=1?'#e74c3c':s.mood<=2?'#f39c12':s.mood<=3?'#f1c40f':s.mood<=4?'#2ecc71':'#27ae60';ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);ctx.fill();}
-    ctx.font='18px sans-serif';ctx.fillStyle='#000';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(s.emoji,sx,sy-1);
-    ctx.font='12px sans-serif';ctx.fillText(s.moodEmoji(),sx,sy-20);
-    ctx.font='7px sans-serif';ctx.fillStyle='#333';ctx.fillText(s.name,sx,sy+24);
-    if(s.arc>=3)ctx.fillText('⭐',sx,sy-30);
+    const sx=s.x*TS,sy=s.y*TS;
+    const pulse=s.hasConflict?1+Math.sin(Date.now()/150)*.15:1;
+    ctx.save();ctx.translate(sx,sy);ctx.scale(pulse,pulse);ctx.translate(-sx,-sy);
+    drawDofusChar(sx,sy,s.id,pulse/1.2,false,s.moodEmoji());
+    ctx.restore();
+    // Name
+    ctx.font='bold 7px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';
+    ctx.strokeStyle='#000';ctx.lineWidth=2;
+    ctx.strokeText(s.name,sx,sy+20);ctx.fillText(s.name,sx,sy+20);
+    // Arc star
+    if(s.arc>=3){ctx.font='12px sans-serif';ctx.fillText('⭐',sx,sy-30);}
   });
 
   // Player
   const px=player.x*TS,py=player.y*TS;
-  ctx.fillStyle='rgba(0,0,0,.3)';ctx.beginPath();ctx.ellipse(px,py+14,14,5,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#3498db';ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px,py,16,0,Math.PI*2);ctx.stroke();
-  ctx.fillStyle='#fff';ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🧑‍🏫',px,py);
+  drawDofusChar(px,py,'',1,true,null);
+  ctx.font='bold 8px sans-serif';ctx.fillStyle='#ffd700';ctx.textAlign='center';
+  ctx.fillText('VOUS',px,py+22);
 
   // Path
-  if(player.path)player.path.forEach((p,i)=>{if(i>player.pathIdx){ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(p.x*TS,p.y*TS,3,0,Math.PI*2);ctx.fill();}});
+  if(player.path)player.path.forEach((p,i)=>{
+    if(i>player.pathIdx){
+      ctx.fillStyle='rgba(255,215,0,.4)';ctx.beginPath();ctx.arc(p.x*TS,p.y*TS,4,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(255,215,0,.6)';ctx.lineWidth=1;ctx.stroke();
+    }
+  });
 
   // Radial menu
   if(G.radialOpen&&G.selectedStudent){
-    const s=G.selectedStudent;const mx=s.x*TS,my=s.y*TS-55;
+    const s=G.selectedStudent;const mx=s.x*TS,my=s.y*TS-60;
     const items=[
-      {i:0,label:'💬 Parler',color:'#2ecc71',action:'talk'},
-      {i:1,label:'🤝 Consoler',color:'#3498db',action:'console'},
-      {i:2,label:'📋 Profil',color:'#95a5a6',action:'profile'},
-      {i:3,label:'⚡ Gronder',color:'#e74c3c',action:'scold'},
+      {i:0,label:'💬',color:'#4caf50',action:'talk'},
+      {i:1,label:'🤝',color:'#2196f3',action:'console'},
+      {i:2,label:'📋',color:'#9e9e9e',action:'profile'},
+      {i:3,label:'⚡',color:'#f44336',action:'scold'},
     ];
-    const r=48,startAngle=-Math.PI/2,arc=Math.PI*2/items.length;
-    ctx.fillStyle='rgba(0,0,0,.75)';ctx.beginPath();ctx.arc(mx,my,r+20,0,Math.PI*2);ctx.fill();
+    const rr=50,sa=-Math.PI/2,arc=Math.PI*2/items.length;
+    ctx.fillStyle='rgba(20,20,40,.9)';ctx.beginPath();ctx.arc(mx,my,rr+24,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ffd700';ctx.lineWidth=3;ctx.stroke();
     G._rbuttons=items.map(item=>{
-      const angle=startAngle+item.i*arc;
-      const bx=mx+Math.cos(angle+arc/2)*r,by=my+Math.sin(angle+arc/2)*r;
-      ctx.fillStyle=item.color;ctx.beginPath();ctx.arc(bx,by,16,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.arc(bx,by,16,0,Math.PI*2);ctx.stroke();
-      ctx.font='14px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(item.label.split(' ')[0],bx,by);
-      return{x:bx,y:by,r:16,action:item.action};
+      const a=sa+item.i*arc;
+      const bx=mx+Math.cos(a+arc/2)*rr,by=my+Math.sin(a+arc/2)*rr;
+      ctx.fillStyle=item.color;ctx.beginPath();ctx.arc(bx,by,18,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=STROKE;ctx.lineWidth=3;ctx.stroke();
+      ctx.font='16px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(item.label,bx,by);
+      return{x:bx,y:by,r:18,action:item.action};
     });
   }
 
   ctx.restore();
-  drawHUD();
+  drawDofusHUD();
 }
 
-function drawHUD(){
+function drawDofusHUD(){
   const w=canvas.width;
-  ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,w,40);
-  ctx.font='bold 11px sans-serif';ctx.fillStyle='#fff';ctx.textAlign='center';
-  ctx.fillText(`📅 ${DAYS[G.day]} | ${PERIODS[G.period]} | ⏱ ${Math.ceil((G.periodDuration-G.timer)/30)}s`,w/2,14);
-  ctx.textAlign='left';ctx.font='10px sans-serif';
-  drawHBar(6,22,G.energy,'#27ae60','⚡');drawHBar(w-185,22,G.auth,'#e67e22','💪');drawHBar(w-95,22,G.trust,'#3498db','❤️');
-  ctx.fillText(`⭐${G.reputation}`,w-40,22);
-  // Objectives
+  // Top bar
+  ctx.fillStyle='rgba(20,20,40,.9)';ctx.beginPath();ctx.roundRect(4,2,w-8,44,12);ctx.fill();
+  ctx.strokeStyle=STROKE;ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(4,2,w-8,44,12);ctx.stroke();
+
+  ctx.font='bold 11px sans-serif';ctx.fillStyle='#ffd700';ctx.textAlign='center';
+  ctx.fillText(`${DAYS[G.day]} | ${PERIODS[G.period]} | ${Math.ceil((G.periodDuration-G.timer)/30)}s`,w/2,16);
+
+  ctx.textAlign='left';ctx.font='bold 9px sans-serif';
+  drawDofusBar(14,26,G.energy,'#4caf50','⚡');
+  drawDofusBar(w/2-70,26,G.auth,'#ff9800','💪');
+  drawDofusBar(w-140,26,G.trust,'#2196f3','❤️');
+
+  ctx.textAlign='right';ctx.fillStyle='#ffd700';ctx.font='bold 10px sans-serif';
+  ctx.fillText(`⭐${G.reputation}`,w-16,26);
   if(G.dailyObjectives.length){
-    ctx.font='8px sans-serif';ctx.textAlign='center';
-    ctx.fillText(`Objectifs: ${G.objectivesDone}/${G.dailyObjectives.length}`,w/2,34);
+    ctx.textAlign='center';ctx.font='bold 8px sans-serif';ctx.fillStyle='#fff';
+    ctx.fillText(`Obj: ${G.objectivesDone}/${G.dailyObjectives.length}`,w/2,38);
   }
 }
-function drawHBar(x,y,val,color,icon){
-  ctx.fillStyle='#555';ctx.fillRect(x,y,56,5);
-  ctx.fillStyle=color;ctx.fillRect(x,y,56*val/100,5);
-  ctx.fillText(`${icon}${Math.round(val)}`,x+58,y+4);
+
+function drawDofusBar(x,y,val,col,icon){
+  const bw=52,bh=8;
+  ctx.fillStyle='#333';ctx.beginPath();ctx.roundRect(x,y,bw,bh,4);ctx.fill();
+  ctx.strokeStyle=STROKE;ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x,y,bw,bh,4);ctx.stroke();
+  if(val>0){
+    ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(x,y,bw*val/100,bh,4);ctx.fill();
+    ctx.strokeStyle=STROKE;ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x,y,bw*val/100,bh,4);ctx.stroke();
+  }
+  ctx.fillStyle='#fff';ctx.fillText(`${icon}${Math.round(val)}`,x+bw+6,y+7);
 }
 
 // Radial tap handler
